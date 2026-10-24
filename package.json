@@ -1,0 +1,82 @@
+{
+  "name": "dsh-model-picker-control",
+  "version": "0.2.1",
+  "description": "Model picker control for DSH: rename, regroup, sort, hide and badge models across providers, with cross-provider partitions, plus suffix capsules.",
+  "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "lib/index.js",
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "default": "./lib/client.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test test/pipeline.test.mjs",
+    "prepack": "node scripts/build.mjs"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-slots",
+        "@deepseek-ai/dsh-client-ui-model-selection"
+      ],
+      "platform": "web"
+    },
+    "manifestVersion": 1
+  },
+  "icon": "./icon.svg",
+  "files": [
+    "lib/index.js",
+    "lib/client.js",
+    "cordis.patch.yml",
+    "README.md",
+    "README_ZH.md",
+    "LICENSE",
+    "icon.svg",
+    "locale/*.json"
+  ],
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "model-picker"
+  ],
+  "license": "MIT",
+  "author": "qzz19970504",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/qzz19970504/dsh-model-picker-control.git"
+  },
+  "homepage": "https://github.com/qzz19970504/dsh-model-picker-control#readme",
+  "bugs": {
+    "url": "https://github.com/qzz19970504/dsh-model-picker-control/issues"
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "3.18.5"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.5",
+    "@deepseek-ai/dsh-client-locale": "^0.2.1-rc.1",
+    "@deepseek-ai/dsh-client-ui-model-selection": "^0.2.1-rc.1",
+    "@deepseek-ai/dsh-client-ui-slots": "^0.2.1-rc.1",
+    "@deepseek-ai/dsh-host-webserver": "^0.2.1-rc.1",
+    "@deepseek-ai/dsh-settings": "^0.2.1-rc.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  }
+}

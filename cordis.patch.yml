@@ -1,0 +1,8 @@
+# dsh-model-picker-control bundle patch
+#
+# Installed with `dsh plugin add dsh-model-picker-control`, which appends the package to
+# `dsh.profile.bundles`; the profile boot then merges this single `insert` of the plugin row.
+# Settings made on the "Model picker" page are stored under this row's `config.picker`.
+- insert:
+    - id: model-picker-control
+      name: 'dsh-model-picker-control'

@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Model picker control",
+    "description": "Rename, regroup, sort, hide and badge models in the model picker and /model popup, with cross-provider partitions, plus suffix capsules."
+  }
+}
