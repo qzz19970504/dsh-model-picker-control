@@ -1,13 +1,69 @@
-# dsh-model-picker-control
+<h1 align="center">dsh-model-picker-control</h1>
 
-Model picker control for DSH. It takes over the composer model picker and the `/model` popup so you can manage how models are shown, without touching any third-party plugin.
+<p align="center"><a href="./README.md">English</a> | <a href="./README_ZH.md">中文</a></p>
 
-- Rename models and provider groups.
-- Reorder provider groups, hide a whole provider or a single model.
-- Custom partitions such as "Free" or "Experimental" that merge models from different providers.
-- In-group sorting by catalog order, or name.
-- A short suffix capsule (short text, up to 20 characters; blue, dark red or cyan) can be added to any model. It sits next to the host's own `1017` tag.
-- Everything is stored in your profile config and survives restarts.
+<p align="center"><strong>Model picker control for DSH</strong> — <em>rename, regroup, sort, hide and badge every model in one place.</em></p>
+
+<p align="center"><sub>cross-provider partitions · rename models &amp; groups · drag-to-reorder · hide a provider or a single model · suffix capsules · one-click restore</sub></p>
+
+<p align="center">
+<a href="https://www.npmjs.com/package/dsh-model-picker-control"><img src="https://img.shields.io/npm/v/dsh-model-picker-control.svg?style=flat-square" alt="npm"></a>
+<a href="./LICENSE"><img src="https://img.shields.io/npm/l/dsh-model-picker-control.svg?style=flat-square" alt="license"></a>
+<a href="https://github.com/qzz19970504/dsh-model-picker-control"><img src="https://img.shields.io/badge/GitHub-qzz19970504%2Fdsh--model--picker--control-181717?style=flat-square&logo=github" alt="GitHub"></a>
+<a href="https://www.deepseek.com"><img src="https://img.shields.io/badge/dsh-plugin-5786FE?style=flat-square" alt="dsh plugin"></a>
+</p>
+
+<p align="center">
+<code>dsh plugin add dsh-model-picker-control</code>
+</p>
+
+<p align="center">
+<a href="https://www.deepseek.com" title="DeepSeek Harness"><img src="https://cdn.simpleicons.org/deepseek/5786FE" height="26" alt="DeepSeek"></a>&nbsp;
+<a href="https://nodejs.org" title="Node.js"><img src="https://cdn.simpleicons.org/nodedotjs/5FA04E" height="26" alt="Node.js"></a>&nbsp;
+<a href="https://react.dev" title="React"><img src="https://cdn.simpleicons.org/react/61DAFB" height="26" alt="React"></a>&nbsp;
+<a href="https://www.npmjs.com" title="npm"><img src="https://cdn.simpleicons.org/npm/CB3837" height="26" alt="npm"></a>
+</p>
+
+---
+
+## Why
+
+DSH ships a good model picker, but the display is fixed: providers come in a hard-coded order, model names are whatever the catalog says, and there is no way to put two models from different providers side by side. If you route some models through an account provider and others through a partner provider, the list you actually want never exists.
+
+This plugin gives you one settings page — sitting next to the built-in **Models** page — that owns the *display* of the picker, without patching a single third-party plugin. Hide the models you never touch, rename the rest into something you can recognise at a glance, drag the groups into the order you think in, and merge models from different providers into a partition such as **Free** or **Experimental**.
+
+## Features
+
+| | |
+|---|---|
+| **Rename anything** | Model display names, provider group names, and a short suffix capsule per model. |
+| **Cross-provider partitions** | Create a partition and drop models into it from any provider — they render as one group. |
+| **Drag to reorder** | Reorder provider groups and partitions with a handle (or focus it and press <kbd>↑</kbd> <kbd>↓</kbd>). |
+| **Hide, don't delete** | Hide a whole provider or a single model. Nothing is removed from the catalog. |
+| **In-group order** | Catalog order, or by model name. Per group or globally. |
+| **Suffix capsules** | A host-native pill after the name — blue, dark red or cyan — that sits beside the host's own `1017` tag. |
+| **Draft & save** | Every edit stays local until you press **Save**; leaving the page with changes asks first. |
+| **Restore** | One click clears the plugin's settings; the host default returns. |
+
+## Screenshots
+
+**Model picker** — a cross-provider “Free” partition on top, capsules after the names, the host `1017` tag still there:
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/picker-en-dark.png">
+    <img src="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/picker-en-light.png" width="700" alt="Model picker">
+  </picture>
+</p>
+
+**Settings → Model picker** — groups and partitions, the model table, and the save bar:
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/settings-en-dark.png">
+    <img src="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/settings-en-light.png" width="620" alt="Model picker settings">
+  </picture>
+</p>
 
 ## Install
 
@@ -15,21 +71,115 @@ Model picker control for DSH. It takes over the composer model picker and the `/
 dsh plugin add dsh-model-picker-control
 ```
 
-Restart DSH, then open Settings and pick **Model picker** (模型选择器) next to the built-in **Models** page.
+Then restart DSH. Open **Settings** — a new page, **Model picker** (模型选择器), appears next to the built-in **Models** page.
+
+Prefer a local build?
+
+```bash
+git clone https://github.com/qzz19970504/dsh-model-picker-control.git
+cd dsh-model-picker-control
+npm install
+npm test
+npm pack                          # produces dsh-model-picker-control-<version>.tgz
+dsh plugin add ./dsh-model-picker-control-<version>.tgz
+```
+
+## Quickstart
+
+1. Open **Settings → Model picker**.
+2. Under **Groups and partitions**, press **New partition** and name it, for example, `Free`.
+3. In the **Models** table, pick `Free` in the partition dropdown of the models you want there — from any provider.
+4. Drag the groups into the order you like, hide what you don't use, and give the important ones a suffix capsule such as `NEW` or `cheap`.
+5. Press **Save**, then open the model picker in the composer. It matches immediately; no restart needed.
+
+## Configuration
+
+Everything is stored under this plugin's own row in your profile config (`config.picker`), written through the host settings service:
+
+```yaml
+- id: model-picker-control
+  name: 'dsh-model-picker-control'
+  config:
+    picker:
+      version: 1
+      enabled: true          # false = restore the host display, keep the settings
+      sectionOrder: [p:free, deepseek-official, workbuddy]
+      providers:
+        deepseek-account: { name: DeepSeek Account, hidden: false }
+      models:
+        deepseek-official/deepseek-pro: { name: DeepSeek-V4.1-Pro, suffix: { text: cheap, tone: red }, partition: p:free }
+        workbuddy/step-5-preview: { suffix: { text: NEW, tone: cyan }, partition: p:free, hidden: false }
+      partitions:
+        - { id: p:free, name: Free }
+      sort: { default: name, bySection: { workbuddy: catalog } }
+      badges: { show1017: true }
+```
+
+| Key | Type | Notes |
+|---|---|---|
+| `enabled` | boolean | `false` restores the host's own picker but keeps your edits. |
+| `sectionOrder` | string[] | Section ids: a provider id, or `p:<partition id>`. |
+| `providers[id].name` | string | Group heading. Empty = the catalog name. |
+| `providers[id].hidden` | boolean | Hide the whole provider. |
+| `models["provider/model"].name` | string | Display name. Empty = the catalog name. |
+| `models["provider/model"].suffix` | `{text, tone}` | `tone` is `blue`, `red` or `cyan`; up to 20 characters. |
+| `models["provider/model"].partition` | string | `p:<id>` to move it into a partition. |
+| `models["provider/model"].hidden` | boolean | Hide this single model. |
+| `partitions[]` | `{id, name}` | A partition merges models from different providers. |
+| `sort.default` | `catalog` \| `name` | In-group order. |
+| `sort.bySection` | map | Per-section override. |
+| `badges.show1017` | boolean | Show or hide the host's `1017` tag next to a model. |
 
 ## How it works
 
-- The picker seat `conversation.input.model` is registered at priority `-1`, which shadows the host seat (priority `0`). Selecting, reasoning effort, search, keyboard navigation, the pending state and the "not available in subagent sessions" behaviour are ported from the host picker and use the host's own `model` translations. Disable the plugin and the host picker returns.
-- The `/model` popup builds its rows through the same pipeline, so names, groups, order and hidden models match the picker. Row ids stay `provider/model`, so the host's select handler is still the one that switches models.
-- Hiding only changes what is displayed. A saved selection that is no longer visible is left untouched; the trigger falls back to the "Select model" text and you can pick another model.
-- Settings are stored under this plugin's row (`config.picker`) through the host settings service: writes are revision-checked, rolled back on failure, and never rewrite the whole `cordis.patch.yml`. "Restore all defaults" clears them.
+```
+composer ──► slot conversation.input.model   (single, session scope)
+                 │
+                 ├─ host  @deepseek-ai/dsh-client-ui-model-selection   priority  0
+                 └─ this  dsh-model-picker-control                     priority -1   ← wins, host seat goes inactive
+                        │
+                        │  ctx.modelDirectories.directoryFor(sessionId)
+                        ▼
+                 catalog groups ──┐
+                 your config ─────┴──►  src/pipeline.js  ──►  sections (order, names, hidden, partitions)
+                                                              │
+                                             ┌────────────────┴────────────────┐
+                                             ▼                                 ▼
+                                   picker menu + trigger              /model popup rows
+                                             │                                 │
+                                             └────────► directory.select() ◄───┘
+```
+
+- The picker seat `conversation.input.model` is a single, session-scoped slot. The plugin registers it at priority `-1`, which shadows the host seat at priority `0`; disabling the plugin brings the host seat straight back. Selecting, reasoning effort, search, keyboard navigation, the pending state and the “not available in subagent sessions” behaviour are all ported from the host picker and use the host's own `model` translations.
+- The `/model` popup builds its rows through the same pipeline, so names, groups, order and hidden models match the picker. Row ids stay `provider/model`, so the host's own select handler is still what switches models.
+- The model list itself is never modified. The plugin reads `ctx.modelDirectories.directoryFor(sessionId)` and renders a section list derived from the catalog plus your config; choosing a model still goes through `directory.select()`.
+- Hiding only changes what is displayed. A saved selection that becomes invisible is left untouched — the trigger falls back to “Select model” and you can pick another one.
+- Writes are revision-checked by the settings service, rolled back on failure, and only ever touch this plugin's row — the rest of `cordis.patch.yml` is never rewritten.
+- The page is available in Chinese and English, following the GUI language.
+
+## FAQ
+
+**Does this patch other plugins?** No. It only registers slots and wraps the host's `/model` contribution in memory, and restores it on dispose.
+
+**I hid the model I was using.** Your saved selection is kept; the trigger shows “Select model” and the picker offers whatever is still visible.
+
+**Where are the settings?** In your DSH profile config, under the plugin's row: `config.picker`. **Restore all defaults** clears them.
+
+**Can I keep the `1017` tag and add my own capsule?** Yes, they coexist — the tag and the capsule are separate slots.
+
+**Does it work in subagent sessions?** The picker behaves as the host does there: it is shown as unavailable, matching host behaviour.
 
 ## Development
 
-```
-npm run build   # concatenates src/ into lib/client.js (no bundler needed)
-npm test        # pure pipeline tests
+```bash
+npm install
+npm run build   # concatenates src/ into lib/client.js (no bundler required)
+npm test        # pure pipeline tests (node:test)
 npm pack
 ```
 
-License: MIT
+The source is plain ESM + `h()` calls — `src/pipeline.js` is pure data transformation and is what the tests cover; `src/client/` holds the slot code.
+
+## License
+
+[MIT](./LICENSE)
