@@ -47,21 +47,30 @@ This plugin gives you one settings page — sitting next to the built-in **Model
 
 ## Screenshots
 
-**Model picker** — a cross-provider “Free” partition on top, capsules after the names, the host `1017` tag still there:
+Real setup, real host. This is the author's own picker: a cross-provider **Free** partition on top, a cross-provider **Fast** partition below it, a suffix capsule on nearly every name (`腾讯` `Tencent` `MiniMax` `Cmdc` `OpenAI` `Google` `Al`), providers he never touches hidden, and the host's own `1017` tag still next to the DeepSeek model.
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/picker-en-dark.png">
-    <img src="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/picker-en-light.png" width="700" alt="Model picker">
+    <img src="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/picker-en-light.png" width="720" alt="Model picker with cross-provider partitions and suffix capsules">
   </picture>
 </p>
 
-**Settings → Model picker** — groups and partitions, the model table, and the save bar:
+**Settings → Groups & partitions** — drag the groups into your own order, rename or hide a provider, and create a partition that pulls models in from any provider:
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/settings-en-dark.png">
-    <img src="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/settings-en-light.png" width="620" alt="Model picker settings">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/groups-en-dark.png">
+    <img src="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/groups-en-light.png" width="640" alt="Groups and partitions page">
+  </picture>
+</p>
+
+**Settings → Models** — rename a model, type a suffix capsule and pick its tone, drop it into a partition, or hide it. Nothing is written until you press **Save**:
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/models-en-dark.png">
+    <img src="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/models-en-light.png" width="640" alt="Model table page">
   </picture>
 </p>
 

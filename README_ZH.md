@@ -47,21 +47,30 @@ DSH 自带的模型选择器很好用，但显示方式是固定的：provider �
 
 ## 界面截图
 
-**模型选择器** —— 顶部是跨 provider 的「免费」分区，名字后面是自定义胶囊，宿主的 `1017` 徽标仍然在：
+真实使用截图，真实宿主界面。这是作者自己的选择器：顶部是跨 provider 的 **Free** 分区，下面是 **Fast** 分区，几乎每个名字后面都带自定义胶囊（`腾讯` `Tencent` `MiniMax` `Cmdc` `OpenAI` `Google` `Al`），用不到的 provider 全部隐藏，宿主自带的 `1017` 徽标依旧保留。
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/picker-zh-dark.png">
-    <img src="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/picker-zh-light.png" width="700" alt="模型选择器">
+    <img src="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/picker-zh-light.png" width="720" alt="带跨 provider 分区与后缀胶囊的模型选择器">
   </picture>
 </p>
 
-**设置 → 模型选择器** —— 分组与分区、模型表格、底部保存栏：
+**设置 → 分组与分区** —— 拖动手柄把分组摆成你自己的顺序，改 provider 名或直接隐藏，新建一个分区把任意 provider 的模型并进来：
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/settings-zh-dark.png">
-    <img src="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/settings-zh-light.png" width="620" alt="模型选择器设置页">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/groups-zh-dark.png">
+    <img src="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/groups-zh-light.png" width="640" alt="分组与分区页面">
+  </picture>
+</p>
+
+**设置 → 模型** —— 改显示名、填后缀胶囊并选颜色、加入某个分区，或者直接隐藏。没按**保存**之前什么都不会写入：
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/models-zh-dark.png">
+    <img src="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/models-zh-light.png" width="640" alt="模型表格页面">
   </picture>
 </p>
 
