@@ -49,13 +49,19 @@ DSH 自带的模型选择器很好用，但显示方式是固定的：provider �
 
 ## 界面截图
 
-真实使用截图，真实宿主界面。这是作者自己的选择器：顶部是跨 provider 的 **Free** 分区，下面是 **Fast** 分区，几乎每个名字后面都带自定义胶囊（`腾讯` `Tencent` `MiniMax` `Cmdc` `OpenAI` `Google` `Al`），用不到的 provider 全部隐藏，宿主自带的 `1017` 徽标依旧保留。
+截图由本插件的真实构建产物加示例数据渲染（宿主界面是模拟的，插件代码不是）。选择器里有跨 provider 的 **免费**、**快速**、**旗舰** 分区，大部分名字后面带各种颜色的胶囊（蓝、暗红、青、自定义颜色、炫彩），还有一个只显示颜色的胶囊，以及一个**模型文件夹**（`DeepSeek V4.1 Flash`，标着 `Pool`）：它代表多个模型，其中一个额度用完时自动接力到下一个。
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/picker-zh-dark.png">
-    <img src="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/picker-zh-light.png" width="720" alt="带跨 provider 分区与后缀胶囊的模型选择器">
+    <img src="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/picker-zh-light.png" width="360" alt="带跨 provider 分区、后缀胶囊与模型文件夹的模型选择器">
   </picture>
+</p>
+
+炫彩胶囊的彩虹边框会缓慢旋转（所有炫彩胶囊共用一个动画，系统设置了「减少动态效果」时关闭）：
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/holo.gif" width="360" alt="边框旋转的炫彩胶囊">
 </p>
 
 **设置 → 分组与分区** —— 拖动手柄把分组摆成你自己的顺序，改 provider 名或直接隐藏，新建一个分区把任意 provider 的模型并进来：
@@ -73,6 +79,15 @@ DSH 自带的模型选择器很好用，但显示方式是固定的：provider �
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/models-zh-dark.png">
     <img src="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/models-zh-light.png" width="640" alt="模型表格页面">
+  </picture>
+</p>
+
+**设置 → 选择器预览** —— 选择器最终渲染出来的样子。拖动一行可以调整顺序，拖到另一行的中间则把两者合并成文件夹，用眼睛按钮临时隐藏额度用完的模型（立即生效，无需**保存**）：
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/preview-zh-dark.png">
+    <img src="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/preview-zh-light.png" width="640" alt="展开了模型文件夹的选择器预览">
   </picture>
 </p>
 

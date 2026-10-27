@@ -49,13 +49,19 @@ This plugin gives you one settings page — sitting next to the built-in **Model
 
 ## Screenshots
 
-Real setup, real host. This is the author's own picker: a cross-provider **Free** partition on top, a cross-provider **Fast** partition below it, a suffix capsule on nearly every name (`腾讯` `Tencent` `MiniMax` `Cmdc` `OpenAI` `Google` `Al`), providers he never touches hidden, and the host's own `1017` tag still next to the DeepSeek model.
+The screenshots are rendered from this plugin's real build with sample data (the host UI is simulated, the plugin code is not). The picker shows cross-provider **Free**, **Fast** and **Flagship** partitions, a suffix capsule on most names in every tone (blue, red, cyan, custom color, holographic), a color-only capsule, and a **model folder** (`DeepSeek V4.1 Flash`, tagged `Pool`) that stands for several models and relays between them when one runs out of quota.
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/picker-en-dark.png">
-    <img src="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/picker-en-light.png" width="720" alt="Model picker with cross-provider partitions and suffix capsules">
+    <img src="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/picker-en-light.png" width="360" alt="Model picker with cross-provider partitions, suffix capsules and a model folder">
   </picture>
+</p>
+
+The holographic capsule has a slowly rotating rainbow border (one shared animation, off under `prefers-reduced-motion`):
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/holo.gif" width="360" alt="Holographic capsules with a rotating border">
 </p>
 
 **Settings → Groups & partitions** — drag the groups into your own order, rename or hide a provider, and create a partition that pulls models in from any provider:
@@ -73,6 +79,15 @@ Real setup, real host. This is the author's own picker: a cross-provider **Free*
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/models-en-dark.png">
     <img src="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/models-en-light.png" width="640" alt="Model table page">
+  </picture>
+</p>
+
+**Settings → Picker preview** — the picker as it will render. Drag a row to reorder it, drop it on the middle of another row to merge both into a folder, and use the eye button to hide an exhausted model for now (applied at once, no **Save** needed):
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/preview-en-dark.png">
+    <img src="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/preview-en-light.png" width="640" alt="Picker preview with an expanded model folder">
   </picture>
 </p>
 
