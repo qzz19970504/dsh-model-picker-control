@@ -6,13 +6,29 @@ const MEASURE_STYLE = { visibility: 'hidden', left: 0, top: 0 }
 const cx = (...parts) => parts.filter(Boolean).join(' ')
 
 function createSeat(env) {
-  const { configStore, locale, tHost } = env
+  const { configStore, locale, tHost, tMine } = env
 
   function useLanguage() {
     return React.useSyncExternalStore((fn) => locale.subscribe(fn), () => locale.getSnapshot().active, () => locale.getSnapshot().active)
   }
 
-  return function ModelSeat({ locked, available, directory, load, select }) {
+  // One model row. Memoized: hovering moves the highlight, which must re-render two rows, not the whole list.
+  // Handlers come through the stable `actions` object so they never change identity between renders.
+  const ModelRow = React.memo(function ModelRow({ entry, index, domId, selected, active, pending, disabled, tabIndex, itemRefs, show1017, actions }) {
+    const setRef = React.useCallback((node) => { itemRefs.current[index] = node }, [itemRefs, index])
+    return h('button', {
+      ref: setRef, type: 'button', role: 'menuitemradio', 'aria-checked': selected, id: domId, tabIndex, onFocus: () => actions.focus(index),
+      'data-highlighted': active ? '' : undefined,
+      className: cx('mpc-option', 'mpc-modelOption', selected && 'mpc-selected', active && 'mpc-optionActive'),
+      onMouseMove: disabled || active ? undefined : () => actions.hover(index),
+      title: entry.name, disabled: disabled || entry.unavailable === true, onClick: () => actions.pick(entry),
+    },
+    h('span', { className: 'mpc-optionCopy' },
+      h('span', { className: 'mpc-modelName' }, h('span', { 'data-provider-id': entry.provider, 'data-model-id': entry.model.id }, h(LabelView, { entry, show1017 })))),
+    h('span', { className: 'mpc-check' }, pending ? h(StateDot) : selected ? h(IconCheck) : null))
+  })
+
+  return function ModelSeat({ locked, available, sessionId, directory, load, select }) {
     const state = React.useSyncExternalStore((fn) => directory.subscribe(fn), () => directory.getSnapshot())
     const language = useLanguage()
     const cfgState = useStore(configStore)
@@ -22,6 +38,12 @@ function createSeat(env) {
     const [query, setQuery] = React.useState('')
     const [highlightedIndex, setHighlightedIndex] = React.useState(null)
     const pointerMove = React.useRef(false)
+    const latest = React.useRef(null)
+    const actions = React.useMemo(() => ({
+      hover: (i) => latest.current.hover(i),
+      focus: (i) => latest.current.focus(i),
+      pick: (e) => { void latest.current.pick(e) },
+    }), [])
     const [selectionFocus, setSelectionFocus] = React.useState(false)
     const lastActionRef = React.useRef('load')
     const [toast, setToast] = React.useState(null)
@@ -36,24 +58,48 @@ function createSeat(env) {
     const id = React.useId()
     const accountName = t('provider.account')
 
-    const built = React.useMemo(() => buildSections(state.groups, cfgState.config, {
-      providerLabel: (g) => (g.id === 'deepseek-account' ? accountName : g.name),
-    }), [state.groups, cfgState.config, accountName])
+    const currentKey = state.current === null ? undefined : modelKey(state.current.provider, state.current.model)
+    // Family failover state (which family this session follows, which members are parked) lives in the Host half.
+    const [fam, setFam] = React.useState({ familyId: undefined, cooldowns: {} })
+    const refreshFam = React.useCallback(() => {
+      if (sessionId === undefined) return
+      familyApi.state(sessionId).then((v) => setFam((prev) => {
+        const cooldowns = v.cooldowns ?? {}
+        const same = prev.familyId === v.familyId && JSON.stringify(prev.cooldowns) === JSON.stringify(cooldowns)
+        return same ? prev : { familyId: v.familyId, cooldowns }
+      }), () => {})
+    }, [sessionId])
+    React.useEffect(() => { if (cfgState.config.families.length > 0) refreshFam() }, [refreshFam, currentKey, open, cfgState.config.families.length])
+    const exhaustedKey = Object.keys(fam.cooldowns).filter((k) => fam.cooldowns[k] > Date.now()).sort().join(',')
+    const exhausted = React.useMemo(() => (exhaustedKey === '' ? [] : exhaustedKey.split(',')), [exhaustedKey])
+    const hasFamilies = cfgState.config.families.length > 0
+    const built = React.useMemo(() => {
+      const providerLabel = (g) => (g.id === 'deepseek-account' ? accountName : g.name)
+      const first = buildSections(state.groups, cfgState.config, { providerLabel, exhausted, current: hasFamilies ? currentKey : undefined })
+      // The family entry the session follows (only while the model in use really is one of its members).
+      const bound = fam.familyId === undefined || currentKey === undefined ? undefined
+        : first.entries.find((e) => e.family && e.familyId === fam.familyId && e.members.some((m) => m.key === currentKey))
+      return bound === undefined ? first : { ...first, bound }
+    }, [state.groups, cfgState.config, accountName, exhausted, hasFamilies ? currentKey : undefined, fam.familyId])
     const choices = built.entries
     const showSearch = choices.length > 4
     const filteredSections = React.useMemo(() => built.sections
       .map((s) => ({ ...s, entries: rankByName(s.entries, showSearch ? query.trim() : '') }))
       .filter((s) => s.entries.length > 0), [built, query, showSearch])
     const visible = React.useMemo(() => filteredSections.flatMap((s) => s.entries), [filteredSections])
-    const isCurrent = (e) => state.current !== null && state.current.provider === e.provider && state.current.model === e.model.id
+    // A folder is current while the model in use is one of its members.
+    const isCurrent = (e) => state.current !== null && (e.family ? e.members.some((m) => m.key === currentKey)
+      : state.current.provider === e.provider && state.current.model === e.model.id)
     const currentVisibleIndex = visible.findIndex(isCurrent)
     const activeModelIndex = Math.min(highlightedIndex ?? Math.max(0, currentVisibleIndex), visible.length - 1)
     // A saved selection hidden (or no longer in the catalog) falls back to the host's "Select model" text.
     // A temporarily hidden model is gone from the list but stays the selection, so its name (and effort) keep showing.
     const currentChoice = state.current === null ? undefined : choices.find(isCurrent) ?? (cfgState.config.tempHidden.length === 0 ? undefined
-      : buildSections(state.groups, cfgState.config, { includeTempHidden: true, providerLabel: (g) => (g.id === 'deepseek-account' ? accountName : g.name) }).entries.find(isCurrent))
-    const reasoning = currentChoice?.model.reasoning
-    const effectiveEffort = state.current?.reasoningEffort ?? reasoning?.defaultEffort
+      : buildSections(state.groups, cfgState.config, { includeTempHidden: true, families: false, providerLabel: (g) => (g.id === 'deepseek-account' ? accountName : g.name) }).entries.find((e) => e.provider === state.current.provider && e.model.id === state.current.model))
+    // A folder offers the levels of its TOP member; the member in use gets the level translated to its own scale.
+    const reasoning = currentChoice?.family ? familyReasoning(currentChoice) : currentChoice?.model.reasoning
+    const memberReasoning = currentChoice?.family ? currentChoice.members.find((m) => m.key === currentKey)?.model?.reasoning : reasoning
+    const effectiveEffort = (currentChoice?.family ? mapEffort(memberReasoning, reasoning, state.current?.reasoningEffort) : state.current?.reasoningEffort) ?? reasoning?.defaultEffort
     const effortLabel = currentChoice === undefined ? undefined
       : reasoning === undefined ? state.retainedEffort
         : effectiveEffort === undefined ? t('effort.providerDefault')
@@ -173,9 +219,31 @@ function createSeat(env) {
     const chooseEffort = (effort) => {
       if (state.current === null) return
       if (effectiveEffort === effort) { closeAfterSelection(); return }
-      submit({ provider: state.current.provider, model: state.current.model, ...(effort === undefined ? {} : { reasoningEffort: effort }) })
+      const sent = currentChoice?.family ? mapEffort(reasoning, memberReasoning, effort) : effort
+      submit({ provider: state.current.provider, model: state.current.model, ...(sent === undefined ? {} : { reasoningEffort: sent }) })
     }
-    const pick = (entry) => choose({ provider: entry.provider, model: entry.model.id })
+    const pick = (entry) => {
+      if (entry.family) {
+        const target = familyTarget(entry, currentKey)
+        if (target === undefined) return
+        if (sessionId !== undefined) familyApi.bind(sessionId, entry.familyId).catch(() => {})
+        setFam((f) => ({ ...f, familyId: entry.familyId }))
+        const top = highestEffort(target.model?.reasoning)
+        choose({ provider: target.provider, model: target.modelId, ...(top === undefined ? {} : { reasoningEffort: top }) })
+        return
+      }
+      if (fam.familyId !== undefined && sessionId !== undefined) {
+        familyApi.bind(sessionId, undefined).catch(() => {})
+        setFam((f) => ({ ...f, familyId: undefined }))
+      }
+      choose({ provider: entry.provider, model: entry.model.id })
+    }
+
+    latest.current = {
+      pick,
+      focus: (i) => setHighlightedIndex(i),
+      hover: (i) => { pointerMove.current = true; if (showSearch) setHighlightedIndex(i); else itemRefs.current[i]?.focus({ preventScroll: true }) },
+    }
 
     const onRootKeyDown = (event) => {
       if (event.nativeEvent.isComposing) return
@@ -199,7 +267,7 @@ function createSeat(env) {
         if (event.key === 'Tab' && visible.length === 0) return
         event.preventDefault()
         const highlighted = visible[activeModelIndex]
-        if (!busy && highlighted !== undefined) pick(highlighted)
+        if (!busy && highlighted !== undefined) void pick(highlighted)
         return
       }
       if (event.key === 'Tab') {
@@ -241,7 +309,7 @@ function createSeat(env) {
       h('span', null, t('error.action', { message: state.error })),
       h('button', { type: 'button', className: 'mpc-retry', onClick: reload }, label))
 
-    const rootPane = h(React.Fragment, null,
+    const rootPane = pane !== 'root' ? null : h(React.Fragment, null,
       h('button', { ref: itemRef(), type: 'button', role: 'menuitem', className: 'mpc-cell', onClick: () => drill('model') },
         h('span', { className: 'mpc-cellLabel' }, t('menu.model')),
         h('span', { className: 'mpc-cellValue' }, currentChoice === undefined ? modelLabel : renderLabel(currentChoice, 'menu')),
@@ -251,7 +319,7 @@ function createSeat(env) {
         h('span', { className: 'mpc-cellValue' }, effortLabel),
         h(IconChevronRight, { className: 'mpc-cellChevron' })))
 
-    const modelPane = h(React.Fragment, null,
+    const modelPane = pane !== 'model' ? null : h(React.Fragment, null,
       showSearch && h('div', { className: 'mpc-searchRow' },
         h(Input, {
           ref: searchRef, className: cx('mpc-search', query !== '' && 'mpc-searchWithQuery'), type: 'text', role: 'searchbox',
@@ -270,23 +338,16 @@ function createSeat(env) {
         filteredSections.map((section) => h(MenuGroup, { key: section.id, label: section.name },
           section.entries.map((entry) => {
             const index = modelIndex++
-            const selected = isCurrent(entry)
-            const isPending = pending !== null && pending.provider === entry.provider && pending.model === entry.model.id
-            return h('button', {
-              key: entry.key, ref: itemRef(), type: 'button', role: 'menuitemradio', 'aria-checked': selected, id: `${id}-model-${index}`,
-              tabIndex: showSearch ? -1 : 0, onFocus: () => setHighlightedIndex(index),
-              'data-highlighted': index === activeModelIndex ? '' : undefined,
-              className: cx('mpc-option', 'mpc-modelOption', selected && 'mpc-selected', index === activeModelIndex && 'mpc-optionActive'),
-              onMouseMove: busy || index === activeModelIndex ? undefined : () => { pointerMove.current = true; if (showSearch) setHighlightedIndex(index); else itemRefs.current[index]?.focus({ preventScroll: true }) },
-              title: entry.name, disabled: busy, onClick: () => pick(entry),
-            },
-            h('span', { className: 'mpc-optionCopy' },
-              h('span', { className: 'mpc-modelName' }, renderLabel(entry, 'option'))),
-            h('span', { className: 'mpc-check' }, isPending ? h(StateDot) : selected ? h(IconCheck) : null))
+            return h(ModelRow, {
+              key: entry.key, entry, index, domId: `${id}-model-${index}`, selected: isCurrent(entry), active: index === activeModelIndex,
+              pending: pending !== null && (entry.family ? entry.members.some((m) => m.provider === pending.provider && m.modelId === pending.model)
+                : pending.provider === entry.provider && pending.model === entry.model.id),
+              disabled: busy, tabIndex: showSearch ? -1 : 0, itemRefs, show1017: cfgState.config.badges.show1017, actions,
+            })
           })))),
       state.status === 'ready' && filteredSections.length === 0 && h('div', { className: 'mpc-empty', role: 'status' }, t(choices.length === 0 ? 'empty.models' : 'search.empty')))
 
-    const effortPane = h(React.Fragment, null,
+    const effortPane = pane !== 'effort' ? null : h(React.Fragment, null,
       loadError && errorStrip(t('action.reload')),
       effortChoices.length === 0 ? h('div', { className: 'mpc-empty' }, t('empty.efforts'))
         : effortChoices.map((level) => h('button', {

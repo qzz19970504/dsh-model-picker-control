@@ -32,7 +32,7 @@ function LabelView({ entry, show1017 }) {
   return h('span', { className: 'mpc-label' },
     h('span', { className: 'mpc-labelText' }, entry.name),
     h(Cap, { cap: entry.suffix }),
-    show1017 && is1017Model(entry.provider, entry.model) ? h(Tag, { tone: 'info' }, '1017') : null)
+    !entry.family && show1017 && is1017Model(entry.provider, entry.model) ? h(Tag, { tone: 'info' }, '1017') : null)
 }
 
 function ModelLabel({ entry, configStore }) {

@@ -1,6 +1,6 @@
 {
   "name": "dsh-model-picker-control",
-  "version": "0.2.3",
+  "version": "0.3.3",
   "description": "Model picker control for DSH: rename, regroup, sort, hide and badge models across providers, with cross-provider partitions, plus suffix capsules.",
   "type": "module",
   "publishConfig": {
@@ -45,6 +45,7 @@
   "files": [
     "lib/index.js",
     "lib/client.js",
+    "src/pipeline.js",
     "cordis.patch.yml",
     "README.md",
     "README_ZH.md",

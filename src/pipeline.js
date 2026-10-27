@@ -14,6 +14,10 @@ export function hostProviderOrder(groups) {
 
 export const modelKey = (providerId, modelId) => `${providerId}/${modelId}`
 
+// A "family" is a folder: an ordered list of models from ONE displayed section, shown as ONE picker entry that sits
+// where its first member was. Its entry key cannot collide with a model key.
+export const FAMILY_KEY_PREFIX = '$family/'
+
 export function defaultConfig() {
   return {
     version: CONFIG_VERSION,
@@ -22,6 +26,7 @@ export function defaultConfig() {
     providers: {},
     models: {},
     partitions: [],
+    families: [],
     sort: { default: 'catalog', bySection: {} },
     order: {},
     tempHidden: [],
@@ -181,6 +186,31 @@ export function normalizeConfig(raw) {
   }
   // Models hidden by hand for now (e.g. quota used up), independent of the permanent `hidden` flag.
   out.tempHidden = Array.isArray(raw.tempHidden) ? [...new Set(raw.tempHidden.filter((k) => typeof k === 'string' && k !== ''))] : []
+  out.families = []
+  if (Array.isArray(raw.families)) {
+    const seen = new Set()
+    for (const f of raw.families) {
+      if (!isObj(f) || typeof f.id !== 'string' || f.id === '' || seen.has(f.id)) continue
+      seen.add(f.id)
+      const members = []
+      const memberSeen = new Set()
+      if (Array.isArray(f.members)) {
+        for (const m of f.members) {
+          if (!isObj(m) || typeof m.provider !== 'string' || typeof m.model !== 'string' || m.provider === '' || m.model === '') continue
+          const k = modelKey(m.provider, m.model)
+          if (memberSeen.has(k)) continue
+          memberSeen.add(k)
+          members.push({ provider: m.provider, model: m.model })
+        }
+      }
+      if (members.length < 2) continue // a folder of one is just a model
+      const fam = { id: f.id, name: str(f.name)?.trim() || f.id, members }
+      if (typeof f.section === 'string' && f.section !== '') fam.section = f.section
+      const suffix = normalizeCap(f.suffix)
+      if (suffix !== undefined) fam.suffix = suffix
+      out.families.push(fam)
+    }
+  }
   out.badges = { show1017: !(isObj(raw.badges) && raw.badges.show1017 === false) }
   return out
 }
@@ -204,8 +234,11 @@ function sortEntries(entries, mode, order) {
  * Build the displayed sections.
  * @param groups host catalog groups [{id,name,models:[{id,name,reasoning?}]}]
  * @param rawConfig stored (possibly partial) config
- * @param opts { providerLabel?: (group)=>string, includeTempHidden?: boolean } includeTempHidden keeps temporarily
- *   hidden models (flagged `tempHidden`) in place; the settings preview uses it so they can be shown again.
+ * @param opts { providerLabel?: (group)=>string, includeTempHidden?: boolean, families?: boolean,
+ *   exhausted?: Set<modelKey>|string[], current?: modelKey } includeTempHidden keeps temporarily hidden models (flagged
+ *   `tempHidden`) in place; the settings preview uses it so they can be shown again. `families: false` shows every
+ *   member as a plain model (the /model popup cannot select a folder). `exhausted` greys family members; `current` is
+ *   the model the session is on (the folder's active member).
  * @returns {{ sections, entries, byKey, config }} entries are the visible flat list in display order
  */
 export function buildSections(groups, rawConfig, opts = {}) {
@@ -232,6 +265,12 @@ export function buildSections(groups, rawConfig, opts = {}) {
   for (const g of ordered) sectionOf(g.id, 'provider', config.providers[g.id]?.name ?? providerLabel(g), config.providers[g.id]?.hidden === true)
   for (const p of config.partitions) sectionOf(PARTITION_PREFIX + p.id, 'partition', p.name, p.hidden === true)
 
+  const folding = opts.families !== false
+  const famByMember = new Map() // modelKey -> family
+  if (folding) for (const f of config.families) for (const m of f.members) famByMember.set(modelKey(m.provider, m.model), f)
+  const seenKeys = new Set()
+  const folders = new Map() // family id -> { fam, home, at, found: Map<modelKey, member> }
+
   for (const g of ordered) {
     const pname = config.providers[g.id]?.name ?? providerLabel(g)
     for (const m of g.models) {
@@ -239,6 +278,16 @@ export function buildSections(groups, rawConfig, opts = {}) {
       const inPartition = ov.partition !== undefined && partitionIds.has(ov.partition)
       const target = inPartition ? buckets.get(PARTITION_PREFIX + ov.partition) : buckets.get(g.id)
       const providerHidden = config.providers[g.id]?.hidden === true
+      const mkey = modelKey(g.id, m.id)
+      seenKeys.add(mkey)
+      const fam = famByMember.get(mkey)
+      if (fam !== undefined && (fam.section ?? target.id) === target.id && ov.hidden !== true && !(providerHidden && !inPartition)) {
+        // Folded into its family: the folder takes the place of the first member found.
+        let folder = folders.get(fam.id)
+        if (folder === undefined) folders.set(fam.id, (folder = { fam, home: target, at: target.entries.length, found: new Map() }))
+        folder.found.set(mkey, { provider: g.id, modelId: m.id, model: m, providerName: pname, name: ov.name ?? m.name })
+        continue
+      }
       if (ov.hidden === true || (providerHidden && !inPartition)) continue
       const entry = makeEntry(g, m, pname, ov, ov.name ?? m.name)
       if (tempHidden.has(entry.key)) {
@@ -247,6 +296,17 @@ export function buildSections(groups, rawConfig, opts = {}) {
       }
       target.entries.push(entry)
     }
+  }
+
+  const placed = [...folders.values()].sort((a, b) => b.at - a.at) // insert from the back so earlier indexes stay valid
+  for (const { fam, home, at, found } of placed) {
+    const entry = makeFamilyEntry(fam, found, seenKeys, opts, tempHidden)
+    if (tempHidden.has(entry.key)) {
+      if (!opts.includeTempHidden) continue
+      entry.tempHidden = true
+    }
+    if (entry.unavailable && !opts.includeTempHidden) continue
+    home.entries.splice(Math.min(at, home.entries.length), 0, entry)
   }
 
   // Section order: user order first (known ids only), partitions next (new ones surface first), then host order.
@@ -273,6 +333,34 @@ function makeEntry(group, model, providerName, ov, name) {
   }
 }
 
+/** One picker entry for a folder: shows the folder name and, as `via`, the member the session is really on. */
+function makeFamilyEntry(fam, found, seenKeys, opts, tempHidden) {
+  const exhausted = opts.exhausted instanceof Set ? opts.exhausted : new Set(opts.exhausted ?? [])
+  const members = []
+  for (const m of fam.members) {
+    const key = modelKey(m.provider, m.model)
+    const f = found.get(key)
+    if (f !== undefined) members.push({ key, ...f, missing: false, exhausted: exhausted.has(key), tempHidden: tempHidden.has(key) })
+    else if (!seenKeys.has(key)) members.push({ key, provider: m.provider, modelId: m.model, model: undefined, name: m.model, providerName: m.provider, missing: true, exhausted: false, tempHidden: false })
+    // else: the model is hidden or lives in another section now; it is no longer part of this folder's display
+  }
+  const usable = members.filter((m) => !m.missing && !m.tempHidden)
+  // The member the session is on is shown; otherwise the first usable one that still has quota.
+  const active = usable.find((m) => m.key === opts.current) ?? usable.find((m) => !m.exhausted) ?? usable[0]
+  const first = active ?? members.find((m) => !m.missing)
+  return {
+    key: FAMILY_KEY_PREFIX + fam.id, family: true, familyId: fam.id, section: fam.section,
+    provider: first?.provider ?? '', providerName: first?.providerName ?? '', model: first?.model ?? { id: '', name: '' },
+    name: fam.name, via: active?.name, suffix: fam.suffix, members, activeKey: active?.key, unavailable: active === undefined,
+  }
+}
+
+/** The member to switch to when a folder is picked: the one in use if usable, else the first usable that is not exhausted. */
+export function familyTarget(entry, currentKey) {
+  const usable = entry.members.filter((m) => !m.missing && !m.tempHidden)
+  return usable.find((m) => m.key === currentKey && !m.exhausted) ?? usable.find((m) => !m.exhausted) ?? usable[0]
+}
+
 function finish(sections, config, groups) {
   const entries = sections.flatMap((s) => s.entries)
   const byKey = new Map(entries.map((e) => [e.key, e]))
@@ -293,6 +381,8 @@ export function popupRows(built, currentKey) {
 export function setModelOverride(config, key, patch) {
   const next = normalizeConfig(config)
   const merged = { ...(next.models[key] ?? {}), ...patch }
+  // A folder lives in one section; moving a member to another partition takes it out of the folder.
+  if (Object.hasOwn(patch, 'partition')) next.families = next.families.map((f) => ({ ...f, members: f.members.filter((m) => modelKey(m.provider, m.model) !== key) }))
   for (const k of Object.keys(merged)) if (merged[k] === undefined || merged[k] === '' || merged[k] === false) delete merged[k]
   if (Object.keys(merged).length === 0) delete next.models[key]
   else next.models[key] = merged
@@ -332,6 +422,7 @@ export function removePartition(config, id) {
   next.sectionOrder = next.sectionOrder.filter((s) => s !== PARTITION_PREFIX + id)
   delete next.sort.bySection[PARTITION_PREFIX + id]
   delete next.order[PARTITION_PREFIX + id]
+  next.families = next.families.filter((f) => f.section !== PARTITION_PREFIX + id)
   for (const [k, v] of Object.entries(next.models)) if (v.partition === id) delete v.partition
   return normalizeConfig(next)
 }
@@ -410,4 +501,169 @@ export function moveModel(groups, rawConfig, sectionId, key, delta, opts = {}) {
   const j = i + delta
   if (i < 0 || j < 0 || j >= keys.length) return config
   return moveModelTo(groups, config, sectionId, key, keys[j], delta > 0, opts)
+}
+
+// ---- families (editing) --------------------------------------------------------------------
+const freezeOrder = (config, sectionId, keys) => ({
+  ...config,
+  order: { ...config.order, [sectionId]: keys },
+  sort: { ...config.sort, bySection: { ...config.sort.bySection, [sectionId]: 'manual' } },
+})
+const sectionEntries = (groups, config, sectionId, opts = {}) =>
+  buildSections(groups, config, { ...opts, includeTempHidden: true }).sections.find((s) => s.id === sectionId)?.entries
+const uniqueFamilyId = (config, name) => {
+  const base = slugify(name)
+  let id = base
+  for (let n = 2; config.families.some((f) => f.id === id); n++) id = `${base}-${n}`
+  return id
+}
+
+/**
+ * Preview drag-and-drop "into": put model `key` into the folder made by (or already at) `targetKey`, inside section
+ * `sectionId`. Both must be entries of that same section (a plain model; a folder is only valid as the target);
+ * anything else is refused and the config comes back unchanged. The section order is frozen so the folder keeps the
+ * target's place.
+ */
+export function mergeIntoFamily(groups, rawConfig, sectionId, key, targetKey, opts = {}) {
+  const config = normalizeConfig(rawConfig)
+  if (key === targetKey || key.startsWith(FAMILY_KEY_PREFIX)) return config
+  const entries = sectionEntries(groups, config, sectionId, opts)
+  const dragged = entries?.find((e) => e.key === key)
+  const target = entries?.find((e) => e.key === targetKey)
+  if (dragged === undefined || target === undefined) return config
+  const keys = entries.map((e) => e.key).filter((k) => k !== key)
+  const member = { provider: dragged.provider, model: dragged.model.id }
+  if (target.family) {
+    const families = config.families.map((f) => (f.id === target.familyId ? { ...f, members: [...f.members, member] } : f))
+    return normalizeConfig(freezeOrder({ ...config, families }, sectionId, keys))
+  }
+  const id = uniqueFamilyId(config, target.name)
+  const fam = { id, name: target.name, section: sectionId, members: [{ provider: target.provider, model: target.model.id }, member] }
+  keys[keys.indexOf(targetKey)] = FAMILY_KEY_PREFIX + id
+  return normalizeConfig(freezeOrder({ ...config, families: [...config.families, fam] }, sectionId, keys))
+}
+
+/** patch: { name?, suffix? } (suffix undefined = no capsule). */
+export function setFamily(rawConfig, id, patch) {
+  const config = normalizeConfig(rawConfig)
+  return normalizeConfig({ ...config, families: config.families.map((f) => {
+    if (f.id !== id) return f
+    const out = { ...f, ...patch }
+    if (out.suffix === undefined) delete out.suffix
+    return out
+  }) })
+}
+
+/** Take members out of a folder (all of them, or just `only`); a folder left with fewer than two members dissolves. */
+function releaseMembers(groups, rawConfig, id, only) {
+  const config = normalizeConfig(rawConfig)
+  const fam = config.families.find((f) => f.id === id)
+  if (fam === undefined) return config
+  const folderKey = FAMILY_KEY_PREFIX + id
+  const all = fam.members.map((m) => modelKey(m.provider, m.model))
+  const out = new Set(only === undefined ? all : [only])
+  const remaining = fam.members.filter((m) => !out.has(modelKey(m.provider, m.model)))
+  const dissolve = remaining.length < 2
+  const released = all.filter((k) => dissolve || out.has(k))
+  const families = config.families.flatMap((f) => (f.id !== id ? [f] : dissolve ? [] : [{ ...f, members: remaining }]))
+  const next = { ...config, families, tempHidden: dissolve ? config.tempHidden.filter((k) => k !== folderKey) : config.tempHidden }
+  const home = buildSections(groups, config, { includeTempHidden: true }).sections.find((s) => s.entries.some((e) => e.key === folderKey))
+  if (home === undefined) return normalizeConfig(next)
+  const keys = home.entries.map((e) => e.key)
+  const at = keys.indexOf(folderKey)
+  keys.splice(at, 1, ...(dissolve ? released : [folderKey, ...released]))
+  return normalizeConfig(freezeOrder(next, home.id, keys))
+}
+
+/** Dissolve a folder: every member returns to the section as a plain model. */
+export function dissolveFamily(groups, rawConfig, id) {
+  return releaseMembers(groups, rawConfig, id, undefined)
+}
+
+/** Drag one member out of its folder (a folder left with one member dissolves). */
+export function ungroupMember(groups, rawConfig, id, key) {
+  return releaseMembers(groups, rawConfig, id, key)
+}
+
+/** Move a member up (-1) or down (+1); priority is the list order, top first. */
+export function moveFamilyMember(rawConfig, id, key, delta) {
+  const config = normalizeConfig(rawConfig)
+  return normalizeConfig({ ...config, families: config.families.map((f) => {
+    if (f.id !== id) return f
+    const members = [...f.members]
+    const i = members.findIndex((m) => modelKey(m.provider, m.model) === key)
+    const j = i + delta
+    if (i < 0 || j < 0 || j >= members.length) return f
+    ;[members[i], members[j]] = [members[j], members[i]]
+    return { ...f, members }
+  }) })
+}
+
+/** Drag a member before/after another member of the same folder. */
+export function moveFamilyMemberTo(rawConfig, id, key, targetKey, after = false) {
+  const config = normalizeConfig(rawConfig)
+  return normalizeConfig({ ...config, families: config.families.map((f) => {
+    if (f.id !== id || key === targetKey) return f
+    const members = [...f.members]
+    const i = members.findIndex((m) => modelKey(m.provider, m.model) === key)
+    if (i < 0) return f
+    const [m] = members.splice(i, 1)
+    const t = members.findIndex((x) => modelKey(x.provider, x.model) === targetKey)
+    if (t < 0) return f
+    members.splice(t + (after ? 1 : 0), 0, m)
+    return { ...f, members }
+  }) })
+}
+
+// ---- failover (pure; the host half drives it) ---------------------------------------------
+/** Failure codes that make a member "unusable" (INVALID_REQUEST / context overflow are NOT here: another member would fail too). */
+export const FAILOVER_CODES = ['QUOTA', 'ACCOUNT_QUOTA', 'RATE_LIMIT', 'AUTH']
+
+/** Epoch ms of the next local midnight after `now` (members come back the next day). */
+export function nextLocalMidnight(now) {
+  const d = new Date(now)
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0, 0).getTime()
+}
+
+/** Drop cooldown entries whose time has passed. cooldowns: { [modelKey]: untilEpochMs }. */
+export function liveCooldowns(cooldowns, now) {
+  const out = {}
+  for (const [k, until] of Object.entries(cooldowns ?? {})) if (typeof until === 'number' && until > now) out[k] = until
+  return out
+}
+
+/**
+ * The member to run a family request on: the first member (top first) that is not cooling down. Because a failed member
+ * stays parked until the next local midnight, this is naturally sticky on the member that took over, and it returns to
+ * the top member once its cooldown has ended. Returns undefined when every member is cooling down.
+ * @param members [{provider, model}] in priority order; `skip` (Set of keys) = members hidden by hand
+ */
+export function pickFamilyMember(members, cooldowns, now, skip) {
+  const live = liveCooldowns(cooldowns, now)
+  return members.find((m) => live[modelKey(m.provider, m.model)] === undefined && !(skip?.has(modelKey(m.provider, m.model)) ?? false))
+}
+
+// ---- reasoning effort across a folder ------------------------------------------------------------
+// A folder offers the effort levels of its top member (members of different vendors rarely agree), and a
+// failover lands on the highest level of the member it moves to.
+
+/** Highest level a model offers (levels are listed low -> high), or undefined for a model without reasoning. */
+export function highestEffort(reasoning) {
+  const efforts = reasoning?.efforts
+  return Array.isArray(efforts) && efforts.length > 0 ? efforts[efforts.length - 1].id : undefined
+}
+
+/** The folder's own reasoning options: those of its first member that exists in the catalog. */
+export function familyReasoning(entry) {
+  return entry.members.find((m) => !m.missing)?.model?.reasoning
+}
+
+/** Translate an effort id of `from` into one `to` accepts: same id if offered, else the same relative rank. */
+export function mapEffort(from, to, effortId) {
+  if (effortId === undefined || to === undefined) return undefined
+  if (to.efforts.some((e) => e.id === effortId)) return effortId
+  const fromIds = from?.efforts.map((e) => e.id) ?? []
+  const at = fromIds.indexOf(effortId)
+  if (at < 0 || fromIds.length < 2) return to.defaultEffort ?? highestEffort(to)
+  return to.efforts[Math.round((at / (fromIds.length - 1)) * (to.efforts.length - 1))].id
 }

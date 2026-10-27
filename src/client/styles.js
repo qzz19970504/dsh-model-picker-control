@@ -68,6 +68,7 @@ const PICKER_CSS = `
 .mpc-toast{position:fixed;top:40px;left:50%;z-index:1100;pointer-events:none;display:flex;align-items:center;gap:10px;width:max-content;max-width:min(640px,calc(100vw - 48px));padding:12px 16px;border-radius:var(--dsw-radius-lg);background:var(--dsw-alias-toast-bg);color:var(--dsw-alias-toast-label);font-size:14px;line-height:22px;box-shadow:var(--dsw-shadow-lv3);transform:translate(-50%);animation:mpc-toast-in .16s ease-out,mpc-toast-fade 1s ease var(--mpc-toast-hold,3s) forwards}
 @keyframes mpc-toast-in{0%{opacity:0;transform:translate(-50%,-6px)}to{opacity:1;transform:translate(-50%)}}
 @keyframes mpc-toast-fade{to{opacity:0;visibility:hidden}}
+.mpc-set .mpc-famMember[data-off]{opacity:.7}
 .mpc-label{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;vertical-align:baseline;max-width:100%}
 .mpc-labelText{overflow:hidden;text-overflow:ellipsis}
 `

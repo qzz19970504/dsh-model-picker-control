@@ -54,6 +54,7 @@ function takeOverModelPopup(ctx, env) {
         state = await models.directoryFor(session.sessionId).load()
         if (!configStore.getSnapshot().loaded) await configStore.load()
         const built = buildSections(state.groups, configStore.getConfig(), {
+          families: false,
           providerLabel: (g) => (g.id === 'deepseek-account' ? tHost('provider.account') : g.name),
         })
         const currentKey = state.current === null ? undefined : modelKey(state.current.provider, state.current.model)
@@ -114,6 +115,7 @@ function apply(ctx) {
       const available = sessions.subagentAddress(sessionId) === undefined
       return {
         available,
+        sessionId,
         directory: directory.store,
         load: () => { if (available) directory.load().catch(() => {}) },
         select: (selection) => (available ? directory.select(selection) : Promise.resolve(undefined)),

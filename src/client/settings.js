@@ -211,6 +211,10 @@ function createSettings(env) {
       configStore.save((c) => clearTempHidden(c))
     }
     const foldProps = { folded, onToggle: toggleFold }
+const [cooldowns, setCooldowns] = React.useState({})
+const refreshCooldowns = React.useCallback(() => { familyApi.state().then((v) => setCooldowns(v.cooldowns ?? {}), () => {}) }, [])
+React.useEffect(() => { refreshCooldowns() }, [refreshCooldowns, cfgState.config.families.length])
+const release = (key) => familyApi.cooldown(key === undefined ? {} : { key }).then((v) => setCooldowns(v.cooldowns ?? {}), () => {})
 
     const dropPosition = (event) => {
       const rect = event.currentTarget.getBoundingClientRect()
@@ -261,11 +265,16 @@ function createSettings(env) {
               onKeyDown: (e) => { if (e.key === 'Enter') addNewPartition() } }),
             h('button', { type: 'button', className: 'mpc-btn', disabled: newPartition.trim() === '', onClick: addNewPartition }, tr('partition.add')))))),
 
+
       h('section', { className: 'mpc-sec' }, h(Fold, { id: 'preview', ...foldProps, title: h('h3', null, tr('preview.title')) },
         h('div', { className: 'mpc-hint' }, tr('preview.hint')),
         h('div', { className: 'mpc-card' },
           h(ModelPreview, { groups, cfg, tr, accountName, onMove: (sid, key, d) => edit((c) => moveModel(groups, c, sid, key, d)),
-            onMoveTo: (sid, key, target, after) => edit((c) => moveModelTo(groups, c, sid, key, target, after)), onTempHide: tempHide, onClearTempHidden: clearTemp })))),
+            onMoveTo: (sid, key, target, after) => edit((c) => moveModelTo(groups, c, sid, key, target, after)), onTempHide: tempHide, onClearTempHidden: clearTemp,
+            onMerge: (sid, key, target) => edit((c) => mergeIntoFamily(groups, c, sid, key, target)), cooldowns, onRelease: release,
+            onFamily: { rename: (id, name) => edit((c) => setFamily(c, id, { name })), cap: (id, cap) => edit((c) => setFamily(c, id, { suffix: cap.text === '' ? undefined : cap })),
+              dissolve: (id) => edit((c) => dissolveFamily(groups, c, id)), ungroup: (id, key) => edit((c) => ungroupMember(groups, c, id, key)),
+              moveMember: (id, key, delta) => edit((c) => moveFamilyMember(c, id, key, delta)), moveMemberTo: (id, key, target, after) => edit((c) => moveFamilyMemberTo(c, id, key, target, after)) } })))),
 
       h('section', { className: 'mpc-sec' }, h(Fold, { id: 'models', ...foldProps, title: h('h3', null, tr('models.title')) },
         h('div', { className: 'mpc-hint' }, tr('models.hint')),

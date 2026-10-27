@@ -92,3 +92,10 @@ function createConfigStore() {
 
   return { ...store, load, save, getConfig: () => store.getSnapshot().config }
 }
+
+/** Family failover state lives in the Host half (in memory): which family a session follows and which members are parked. */
+const familyApi = {
+  state: (sessionId) => call('family.state', { sessionId }),
+  bind: (sessionId, familyId) => call('family.bind', { sessionId, familyId: familyId ?? 'none' }),
+  cooldown: (payload) => call('family.cooldown', payload ?? {}),
+}

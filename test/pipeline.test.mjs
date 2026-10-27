@@ -4,6 +4,9 @@ import {
   buildSections, normalizeConfig, popupRows, addPartition, removePartition, setModelOverride,
   setProviderOverride, moveSection, moveSectionTo, effectiveSectionIds, hostProviderOrder, normalizeCap,
   parseColor, capTextColor, contrastRatio, hexToRgb, setTempHidden, clearTempHidden, moveModel, moveModelTo,
+  mergeIntoFamily, setFamily, dissolveFamily, ungroupMember, moveFamilyMember, moveFamilyMemberTo,
+  familyTarget, pickFamilyMember, nextLocalMidnight, liveCooldowns, FAILOVER_CODES,
+  highestEffort, familyReasoning, mapEffort,
 } from '../src/pipeline.js'
 
 const groups = [
@@ -174,4 +177,104 @@ test('manual order: preview drag freezes order, new models go last, junk is drop
   assert.deepEqual(keys(t), ['workbuddy/glm', 'workbuddy/kimi'])
   assert.deepEqual(normalizeConfig({ order: { s: ['a', 'a', 5, ''], bad: 'x' } }).order, { s: ['a'] })
   assert.equal(moveModelTo(groups, undefined, 'nope', 'a', 'b').order.nope, undefined)
+})
+
+test('folders: merge inside one group, active member, exhausted, hidden', () => {
+  const sid = 'workbuddy'
+  let c = mergeIntoFamily(groups, undefined, sid, 'workbuddy/kimi', 'workbuddy/glm')
+  assert.equal(c.families.length, 1)
+  assert.equal(c.families[0].name, 'GLM-5 · x0.50')
+  assert.equal(c.families[0].section, sid)
+  c = mergeIntoFamily(groups, c, sid, 'workbuddy/abc', '$family/' + c.families[0].id) // append to the existing folder
+  assert.deepEqual(c.families[0].members.map((m) => m.model), ['glm', 'kimi', 'abc'])
+  const b = buildSections(groups, c)
+  const sec = b.sections.find((x) => x.id === sid)
+  assert.equal(sec.entries.filter((x) => x.family).length, 1)
+  assert.equal(sec.entries.some((x) => x.key === 'workbuddy/kimi'), false) // folded away
+  const e = sec.entries.find((x) => x.family)
+  assert.equal(e.provider, 'workbuddy')
+  assert.equal(e.model.id, 'glm')
+  // exhausted first member -> next usable one is active
+  const e2 = buildSections(groups, c, { exhausted: ['workbuddy/glm'] }).entries.find((x) => x.family)
+  assert.equal(e2.model.id, 'kimi')
+  assert.equal(familyTarget(e2, undefined).key, 'workbuddy/kimi')
+  // hand-hidden members are skipped too, the member in use wins while usable
+  c = setTempHidden(c, 'workbuddy/glm', true)
+  assert.equal(buildSections(groups, c, { includeTempHidden: true }).entries.find((x) => x.family).model.id, 'kimi')
+  assert.equal(buildSections(groups, c, { current: 'workbuddy/abc' }).entries.find((x) => x.family).model.id, 'abc')
+  // popup takeover can leave folders out
+  assert.equal(buildSections(groups, c, { families: false }).entries.some((x) => x.family), false)
+  // reorder inside the folder
+  c = moveFamilyMember(c, c.families[0].id, 'workbuddy/abc', -1)
+  assert.deepEqual(c.families[0].members.map((m) => m.model), ['glm', 'abc', 'kimi'])
+  c = moveFamilyMemberTo(c, c.families[0].id, 'workbuddy/kimi', 'workbuddy/glm', false)
+  assert.deepEqual(c.families[0].members.map((m) => m.model), ['kimi', 'glm', 'abc'])
+  c = setFamily(c, c.families[0].id, { name: 'Renamed', suffix: { text: 'F', tone: 'blue' } })
+  assert.equal(c.families[0].name, 'Renamed')
+  assert.equal(c.families[0].suffix.text, 'F')
+})
+
+test('folders: only same-group merges, folders cannot be dragged into folders', () => {
+  const before = mergeIntoFamily(groups, undefined, 'workbuddy', 'workbuddy/glm', 'deepseek-official/pro')
+  assert.equal(before.families.length, 0) // target is in another section
+  const c = mergeIntoFamily(groups, undefined, 'workbuddy', 'workbuddy/kimi', 'workbuddy/glm')
+  const key = '$family/' + c.families[0].id
+  assert.equal(mergeIntoFamily(groups, c, 'workbuddy', key, 'workbuddy/abc').families[0].members.length, 2)
+})
+
+test('folders: ungroup and dissolve keep the models, a lone member dissolves the folder', () => {
+  let c = mergeIntoFamily(groups, undefined, 'workbuddy', 'workbuddy/kimi', 'workbuddy/glm')
+  c = mergeIntoFamily(groups, c, 'workbuddy', 'workbuddy/abc', '$family/' + c.families[0].id)
+  const id = c.families[0].id
+  c = ungroupMember(groups, c, id, 'workbuddy/abc')
+  assert.equal(c.families[0].members.length, 2)
+  assert.ok(buildSections(groups, c).byKey.has('workbuddy/abc'))
+  c = ungroupMember(groups, c, id, 'workbuddy/kimi')
+  assert.equal(c.families.length, 0)
+  const keys = buildSections(groups, c).sections.find((x) => x.id === 'workbuddy').entries.map((x) => x.key)
+  assert.ok(keys.includes('workbuddy/glm') && keys.includes('workbuddy/kimi') && keys.includes('workbuddy/abc'))
+  c = mergeIntoFamily(groups, c, 'workbuddy', 'workbuddy/kimi', 'workbuddy/glm')
+  assert.equal(dissolveFamily(groups, c, c.families[0].id).families.length, 0)
+})
+
+test('folders: moving a model to another partition takes it out of the folder', () => {
+  let c = mergeIntoFamily(groups, undefined, 'workbuddy', 'workbuddy/kimi', 'workbuddy/glm')
+  c = mergeIntoFamily(groups, c, 'workbuddy', 'workbuddy/abc', '$family/' + c.families[0].id)
+  c = addPartition(c, 'Free').config
+  const part = c.partitions[0].id
+  c = setModelOverride(c, 'workbuddy/abc', { partition: part })
+  assert.deepEqual(c.families[0].members.map((m) => m.model), ['glm', 'kimi'])
+})
+
+test('family failover: pick, cooldown until next local midnight', () => {
+  const members = [{ provider: 'a', model: '1' }, { provider: 'b', model: '2' }, { provider: 'c', model: '3' }]
+  const now = new Date(2026, 9, 27, 21, 30).getTime()
+  const mid = nextLocalMidnight(now)
+  assert.equal(new Date(mid).getHours(), 0)
+  assert.equal(new Date(mid).getDate(), 28)
+  const cd = { 'a/1': mid }
+  assert.equal(pickFamilyMember(members, cd, now).provider, 'b')
+  cd['b/2'] = mid
+  assert.equal(pickFamilyMember(members, cd, now).provider, 'c')
+  cd['c/3'] = mid
+  assert.equal(pickFamilyMember(members, cd, now), undefined)
+  // after midnight the top member is back
+  assert.equal(pickFamilyMember(members, cd, mid + 1).provider, 'a')
+  // hand-hidden members are skipped
+  assert.equal(pickFamilyMember(members, {}, now, new Set(['a/1'])).provider, 'b')
+  assert.deepEqual(liveCooldowns(cd, mid + 1), {})
+  assert.deepEqual(FAILOVER_CODES, ['QUOTA', 'ACCOUNT_QUOTA', 'RATE_LIMIT', 'AUTH'])
+})
+
+test('effort helpers: highest level, folder options from top member, rank mapping', () => {
+  const four = { efforts: [{ id: 'low' }, { id: 'medium' }, { id: 'high' }, { id: 'max' }], defaultEffort: 'medium' }
+  const two = { efforts: [{ id: 'low' }, { id: 'high' }] }
+  assert.equal(highestEffort(four), 'max')
+  assert.equal(highestEffort(undefined), undefined)
+  assert.equal(familyReasoning({ members: [{ missing: true }, { model: { reasoning: two } }, { model: { reasoning: four } }] }), two)
+  assert.equal(mapEffort(four, two, 'high'), 'high')
+  assert.equal(mapEffort(four, two, 'max'), 'high')
+  assert.equal(mapEffort(four, two, 'low'), 'low')
+  assert.equal(mapEffort(two, four, 'low'), 'low')
+  assert.equal(mapEffort(four, undefined, 'low'), undefined)
 })

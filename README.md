@@ -42,6 +42,8 @@ This plugin gives you one settings page — sitting next to the built-in **Model
 | **Hide, don't delete** | Hide a whole provider or a single model. Nothing is removed from the catalog. |
 | **In-group order** | Catalog order, or by model name. Per group or globally. |
 | **Suffix capsules** | A host-native pill after the name — blue, dark red or cyan — that sits beside the host's own `1017` tag. |
+| **Model folders** | In the preview card, drag a row onto the middle of another row of the same group to merge them into a folder (a "family"). The folder takes one row in the picker, can carry a capsule, and its members run top to bottom: when a request fails with an exhausted quota, rate limit or auth error, the next member takes over and the request is resent as a normal model switch; the failed member rests until local midnight. Standalone, no other plugin needed. |
+| **Preview & temporary hide** | A live preview card: drag models into order, and an eye button hides exhausted models for now. |
 | **Draft & save** | Every edit stays local until you press **Save**; leaving the page with changes asks first. |
 | **Restore** | One click clears the plugin's settings; the host default returns. |
 
@@ -138,6 +140,7 @@ Everything is stored under this plugin's own row in your profile config (`config
 | `sort.default` | `catalog` \| `name` | In-group order. |
 | `sort.bySection` | map | Per-section override. |
 | `badges.show1017` | boolean | Show or hide the host's `1017` tag next to a model. |
+| `families[]` | `{id, name, section, suffix?, members: [{provider, model}]}` | Ordered members, top first. Failover codes: `QUOTA`, `ACCOUNT_QUOTA`, `RATE_LIMIT`, `AUTH`. |
 
 ## How it works
 
