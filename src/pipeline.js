@@ -667,3 +667,23 @@ export function mapEffort(from, to, effortId) {
   if (at < 0 || fromIds.length < 2) return to.defaultEffort ?? highestEffort(to)
   return to.efforts[Math.round((at / (fromIds.length - 1)) * (to.efforts.length - 1))].id
 }
+
+// ---- which members actually relay ---------------------------------------------------------------------
+/**
+ * The members of a folder that take part in the relay: the ones the picker would show inside the folder. Hidden
+ * models, models of a hidden provider (unless a partition brings them back) and models that now sit in another
+ * section never receive a request. The host half has no catalog, so this is decided from the saved config alone;
+ * it mirrors the folding rule in buildSections.
+ */
+export function relayMembers(fam, rawConfig) {
+  const config = normalizeConfig(rawConfig)
+  const partitionIds = new Set(config.partitions.map((p) => p.id))
+  return fam.members.filter((m) => {
+    const ov = config.models[modelKey(m.provider, m.model)] ?? {}
+    const inPartition = ov.partition !== undefined && partitionIds.has(ov.partition)
+    const sectionId = inPartition ? PARTITION_PREFIX + ov.partition : m.provider
+    if (ov.hidden === true) return false
+    if (config.providers[m.provider]?.hidden === true && !inPartition) return false
+    return (fam.section ?? sectionId) === sectionId
+  })
+}

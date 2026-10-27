@@ -6,7 +6,7 @@ import {
   parseColor, capTextColor, contrastRatio, hexToRgb, setTempHidden, clearTempHidden, moveModel, moveModelTo,
   mergeIntoFamily, setFamily, dissolveFamily, ungroupMember, moveFamilyMember, moveFamilyMemberTo,
   familyTarget, pickFamilyMember, nextLocalMidnight, liveCooldowns, FAILOVER_CODES,
-  highestEffort, familyReasoning, mapEffort,
+  highestEffort, familyReasoning, mapEffort, relayMembers,
 } from '../src/pipeline.js'
 
 const groups = [
@@ -277,4 +277,22 @@ test('effort helpers: highest level, folder options from top member, rank mappin
   assert.equal(mapEffort(four, two, 'low'), 'low')
   assert.equal(mapEffort(two, four, 'low'), 'low')
   assert.equal(mapEffort(four, undefined, 'low'), undefined)
+})
+
+test('relayMembers: hidden / moved members never receive a relayed request', () => {
+  const fam = { id: 'f', name: 'Sonnet', section: 'p:prod', members: [
+    { provider: 'cline', model: 'sonnet' }, { provider: 'relayA', model: 'sonnet' }, { provider: 'relayB', model: 'sonnet' }, { provider: 'relayC', model: 'sonnet' } ] }
+  const raw = {
+    partitions: [{ id: 'prod', name: 'Prod' }, { id: 'other', name: 'Other' }],
+    providers: { relayA: { hidden: true } }, // provider hidden, but the model sits in the partition -> still shown
+    models: {
+      'cline/sonnet': { hidden: true, partition: 'prod' },
+      'relayA/sonnet': { partition: 'prod' },
+      'relayB/sonnet': { partition: 'prod' },
+      'relayC/sonnet': { partition: 'other' }, // moved to another section
+    },
+    families: [fam],
+  }
+  assert.deepEqual(relayMembers(fam, raw).map((m) => m.provider), ['relayA', 'relayB'])
+  assert.equal(pickFamilyMember(relayMembers(fam, raw), {}, Date.now())?.provider, 'relayA')
 })
