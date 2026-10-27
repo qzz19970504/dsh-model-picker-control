@@ -120,11 +120,12 @@ export function capTextColor(hex) {
  * Empty text = no capsule.
  */
 export const CAP_MAX = 20
-export const CAP_TONES = ['blue', 'red', 'cyan', 'custom']
+export const CAP_TONES = ['blue', 'red', 'cyan', 'custom', 'holo']
 export function normalizeCap(v) {
   if (typeof v !== 'object' || v === null || Array.isArray(v)) return undefined
   const text = typeof v.text === 'string' ? Array.from(v.text.trim()).slice(0, CAP_MAX).join('') : ''
-  if (text === '') return undefined
+  // A capsule may be color only (empty text): that needs an explicit tone, otherwise empty text still means "no capsule".
+  if (text === '' && !CAP_TONES.includes(v.tone)) return undefined
   const tone = CAP_TONES.includes(v.tone) ? v.tone : 'blue'
   if (tone !== 'custom') return { text, tone }
   return { text, tone, color: parseColor(v.color) ?? DEFAULT_CAP_COLOR }
@@ -686,4 +687,55 @@ export function relayMembers(fam, rawConfig) {
     if (config.providers[m.provider]?.hidden === true && !inPartition) return false
     return (fam.section ?? sectionId) === sectionId
   })
+}
+
+// ---- bulk capsule colors --------------------------------------------------------------------------------
+/**
+ * Give every model shown in a section (folders count as one) the same capsule color. Text that is already there is
+ * kept; a model without a capsule gets a color-only one. `style` = { tone, color? }.
+ */
+export function setSectionCaps(groups, rawConfig, sectionId, style) {
+  const config = normalizeConfig(rawConfig)
+  const section = buildSections(groups, config, { includeTempHidden: true }).sections.find((s) => s.id === sectionId)
+  if (section === undefined) return config
+  const models = { ...config.models }
+  const folderIds = new Set()
+  const capFor = (old) => normalizeCap({ text: old?.text ?? '', tone: style.tone, color: style.color })
+  for (const e of section.entries) {
+    if (e.family) folderIds.add(e.familyId)
+    else models[e.key] = { ...(models[e.key] ?? {}), suffix: capFor(e.suffix) }
+  }
+  const families = config.families.map((f) => (folderIds.has(f.id) ? { ...f, suffix: capFor(f.suffix) } : f))
+  return normalizeConfig({ ...config, models, families })
+}
+
+/** How many capsules carry no text (the ones "clear empty capsules" removes). */
+export function countEmptyCaps(rawConfig) {
+  const config = normalizeConfig(rawConfig)
+  const empty = (c) => c !== undefined && c.text === ''
+  return Object.values(config.models).filter((m) => empty(m.suffix)).length + config.families.filter((f) => empty(f.suffix)).length
+}
+
+/** Remove every capsule that has no text, in all sections; capsules with text are untouched. */
+export function clearEmptyCaps(rawConfig) {
+  const config = normalizeConfig(rawConfig)
+  const models = {}
+  for (const [k, m] of Object.entries(config.models)) {
+    const { suffix, ...rest } = m
+    const next = suffix !== undefined && suffix.text === '' ? rest : m
+    if (Object.keys(next).length > 0) models[k] = next
+  }
+  const families = config.families.map((f) => {
+    if (f.suffix === undefined || f.suffix.text !== '') return f
+    const { suffix: _s, ...rest } = f
+    return rest
+  })
+  return normalizeConfig({ ...config, models, families })
+}
+
+/** Hide (or show again) several models at once: the per-provider eye button in settings. */
+export function setModelsHidden(config, keys, hidden) {
+  let next = normalizeConfig(config)
+  for (const key of keys) next = setModelOverride(next, key, { hidden: hidden === true })
+  return next
 }

@@ -64,6 +64,11 @@ const PICKER_CSS = `
 .mpc-tag[data-tone=blue]{background:color-mix(in srgb,var(--dsw-alias-state-business-primary) 10%,transparent);color:color-mix(in srgb,var(--dsw-alias-state-business-primary) 88%,#000)}
 .mpc-tag[data-tone=red]{background:color-mix(in srgb,#d9544f 12%,transparent);color:color-mix(in srgb,#d9544f 88%,#000)}
 .mpc-tag[data-tone=cyan]{background:color-mix(in srgb,#1fb89a 12%,transparent);color:color-mix(in srgb,#1fb89a 88%,#000)}
+@property --mpc-holo-a{syntax:'<angle>';inherits:true;initial-value:0deg}
+@keyframes mpc-holo{to{--mpc-holo-a:360deg}}
+.mpc-tag[data-tone=holo]{border:1.5px solid transparent;padding:0 7px;line-height:16px;color:#fff;font-weight:700;text-shadow:0 0 6px rgba(190,150,255,.65);background:linear-gradient(135deg,#34196b,#17114a) padding-box,conic-gradient(from var(--mpc-holo-a),#ff3df0,#7a5cff,#00d4ff,#2bff9e,#ffe14d,#ff7a3d,#ff3df0) border-box;box-shadow:0 0 7px rgba(150,110,255,.5)}
+.mpc-root:has([data-tone=holo]),.mpc-menu:has([data-tone=holo]),.mpc-pv:has([data-tone=holo]){animation:mpc-holo 5s cubic-bezier(.5,.15,.5,.85) infinite}
+@media (prefers-reduced-motion:reduce){.mpc-root,.mpc-menu,.mpc-pv{animation:none!important}}
 .mpc-tag[data-tone=neutral]{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-secondary)}
 .mpc-toast{position:fixed;top:40px;left:50%;z-index:1100;pointer-events:none;display:flex;align-items:center;gap:10px;width:max-content;max-width:min(640px,calc(100vw - 48px));padding:12px 16px;border-radius:var(--dsw-radius-lg);background:var(--dsw-alias-toast-bg);color:var(--dsw-alias-toast-label);font-size:14px;line-height:22px;box-shadow:var(--dsw-shadow-lv3);transform:translate(-50%);animation:mpc-toast-in .16s ease-out,mpc-toast-fade 1s ease var(--mpc-toast-hold,3s) forwards}
 @keyframes mpc-toast-in{0%{opacity:0;transform:translate(-50%,-6px)}to{opacity:1;transform:translate(-50%)}}

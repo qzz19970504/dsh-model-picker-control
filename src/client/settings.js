@@ -20,21 +20,47 @@ const SETTINGS_CSS = PREVIEW_CSS + `
 .mpc-set button.mpc-btn:disabled{opacity:.4;cursor:default}
 .mpc-set button.mpc-danger{color:var(--dsw-alias-state-error-primary)}
 .mpc-set .mpc-sub{font-weight:600}
-.mpc-set .mpc-section{display:flex;align-items:center;gap:8px;padding:2px 4px;border-radius:var(--dsw-radius-md);border-top:2px solid transparent;border-bottom:2px solid transparent}
+.mpc-set .mpc-card{container-type:inline-size}
+.mpc-set button.mpc-btn,.mpc-set .mpc-row>label,.mpc-set .mpc-section label{white-space:nowrap}
+.mpc-set .mpc-section{display:grid;grid-template-columns:22px minmax(120px,1fr) 62px 168px 36px 88px 56px;align-items:center;column-gap:10px;padding:3px 4px;border-radius:var(--dsw-radius-md);border-top:2px solid transparent;border-bottom:2px solid transparent}
+.mpc-set .mpc-section>*{min-width:0}
+.mpc-set .mpc-section select,.mpc-set .mpc-section input[type=text]{width:100%}
+.mpc-set .mpc-section label{display:inline-flex;align-items:center;gap:6px}
+.mpc-set .mpc-section button.mpc-btn{width:100%;padding:0 6px}
+.mpc-set .mpc-kind{color:var(--dsw-alias-label-tertiary);font-size:12px;white-space:nowrap}
+.mpc-set .mpc-bulk{display:block}
+.mpc-set .mpc-bulk>button{width:100%}
+@container (max-width:600px){.mpc-set .mpc-section{grid-template-columns:22px minmax(100px,1fr) 150px 36px 84px 52px}.mpc-set .mpc-section .mpc-kind{display:none}.mpc-set .mpc-model{grid-template-columns:minmax(80px,1fr) max-content 104px 36px;gap:8px}}
 .mpc-set .mpc-section[data-drop=before]{border-top-color:var(--dsw-alias-state-business-primary)}
 .mpc-set .mpc-section[data-drop=after]{border-bottom-color:var(--dsw-alias-state-business-primary)}
 .mpc-set .mpc-section[data-dragging]{opacity:.45}
 .mpc-set .mpc-handle{flex:none;width:22px;height:28px;border:0;background:transparent;color:var(--dsw-alias-label-tertiary);cursor:grab;font-size:16px;line-height:28px;padding:0;border-radius:var(--dsw-radius-md)}
 .mpc-set .mpc-handle:hover,.mpc-set .mpc-handle:focus-visible{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
 .mpc-set .mpc-handle:active{cursor:grabbing}
-.mpc-set .mpc-model{display:grid;grid-template-columns:minmax(140px,320px) 176px 128px 40px;gap:8px 10px;align-items:start;justify-content:start}
+.mpc-set .mpc-model{display:grid;grid-template-columns:minmax(96px,1fr) max-content 124px 36px;gap:8px 12px;align-items:center}
 .mpc-set .mpc-model>*{min-width:0}
 .mpc-set .mpc-model input[type=text],.mpc-set .mpc-model select{width:100%;min-width:0}
 .mpc-set .mpc-modelHead{color:var(--dsw-alias-label-tertiary);font-size:11px}
 .mpc-set .mpc-modelHead>*{text-align:left;padding-left:2px}
-.mpc-set .mpc-modelHide{display:flex;justify-content:flex-start;padding-left:2px;min-height:28px;align-items:center}
-.mpc-set .mpc-capCell{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-height:28px}
-.mpc-set .mpc-capColor{flex-basis:100%;display:flex;align-items:center;gap:6px}
+.mpc-set .mpc-modelHead>:last-child{text-align:center;padding-left:0}
+.mpc-set .mpc-modelHide{display:flex;justify-content:center;align-items:center;min-height:28px}
+.mpc-set .mpc-eye{flex:none;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;padding:0;border:0;border-radius:var(--dsw-radius-md);background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer}
+.mpc-set .mpc-eye:hover,.mpc-set .mpc-eye:focus-visible{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary);outline:none}
+.mpc-set .mpc-eye[data-off]{color:var(--dsw-alias-label-tertiary);opacity:.65}
+.mpc-set .mpc-eye[data-partial]{opacity:.7}
+.mpc-set .mpc-capCell{display:flex;align-items:center;gap:6px;min-height:28px}
+.mpc-set .mpc-tones{position:relative;display:inline-flex;align-items:center;gap:6px;flex:none}
+.mpc-set .mpc-capColor{display:flex;align-items:center;gap:6px}
+.mpc-set .mpc-capPop,.mpc-set .mpc-pop{position:absolute;z-index:20;top:calc(100% + 6px);left:0;padding:8px;border:.5px solid var(--dsw-alias-border-l4);border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-layer-1);box-shadow:0 6px 20px rgba(0,0,0,.28)}
+.mpc-set .mpc-pop{right:0;left:auto;display:flex;flex-direction:column;gap:8px;width:max-content;max-width:260px}
+.mpc-set .mpc-pop .mpc-tones{flex-wrap:wrap}
+.mpc-set .mpc-pop .mpc-capColor{margin-top:2px}
+.mpc-set .mpc-bulk{position:relative}
+.mpc-set .mpc-applyBtn{align-self:flex-end}
+.mpc-set .mpc-tone[data-holo]{background:conic-gradient(from 30deg,#ff3df0,#7a5cff,#00d4ff,#2bff9e,#ffe14d,#ff7a3d,#ff3df0);box-shadow:none}
+.mpc-set .mpc-capClear{flex:none;width:18px;height:18px;padding:0;border:0;border-radius:50%;background:transparent;color:var(--dsw-alias-label-tertiary);font-size:14px;line-height:16px;cursor:pointer}
+.mpc-set .mpc-capClear:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
+.mpc-set .mpc-capClear:disabled{opacity:.25;cursor:default}
 .mpc-set .mpc-capColor input[type=color]{width:28px;height:28px;padding:1px;border:.5px solid var(--dsw-alias-border-l4);border-radius:var(--dsw-radius-md);background:transparent;cursor:pointer}
 .mpc-set .mpc-capColor input[type=text]{width:112px;font-variant-numeric:tabular-nums}
 .mpc-set .mpc-tone[data-custom]{box-shadow:none;background:var(--mpc-tone)}
@@ -83,26 +109,75 @@ const TONE_COLORS = { blue: 'var(--dsw-alias-state-business-primary)', red: '#d9
 const CUSTOM_SWATCH = 'conic-gradient(#e5484d,#f5a524,#30a46c,#0091ff,#8e4ec6,#e5484d)'
 
 /**
- * Suffix capsule editor: up to CAP_MAX characters + a preset tone (blue / red / cyan) or a custom color
- * (color picker, or hex / RGB text; default white). The capsule text color is derived automatically
- * (capTextColor: same hue, contrast >= 4.5:1). Empty text = no capsule.
+ * One row of tone dots (blue / red / cyan / custom / holo). Custom opens a small popover under the dot (color picker +
+ * hex / RGB text) instead of pushing a second row into the table; `inline` shows those two fields in place (used inside
+ * another popover). `value` = { tone, color? } or undefined (nothing selected).
+ */
+function TonePicker({ value, onPick, tr, inline = false }) {
+  const [open, setOpen] = React.useState(false)
+  const box = React.useRef(null)
+  const tone = value?.tone
+  const color = value?.color ?? DEFAULT_CAP_COLOR
+  React.useEffect(() => {
+    if (!open || inline) return undefined
+    const away = (e) => { if (box.current !== null && !box.current.contains(e.target)) setOpen(false) }
+    const esc = (e) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('pointerdown', away, true)
+    document.addEventListener('keydown', esc, true)
+    return () => { document.removeEventListener('pointerdown', away, true); document.removeEventListener('keydown', esc, true) }
+  }, [open, inline])
+  const fields = h('div', { className: cx('mpc-capColor', !inline && 'mpc-capPop') },
+    h('input', { type: 'color', value: color, 'aria-label': tr('cap.color'), title: tr('cap.color'), onChange: (e) => onPick({ tone: 'custom', color: parseColor(e.target.value) ?? color }) }),
+    h(CommitInput, { value: color, placeholder: '#RRGGBB / R,G,B', 'aria-label': tr('cap.colorText'), title: tr('cap.colorHint'), spellCheck: false,
+      validate: (v) => parseColor(v) !== undefined, onCommit: (v) => onPick({ tone: 'custom', color: parseColor(v) }) }))
+  const dot = (key, style, label, extra) => h('button', { key, type: 'button', className: 'mpc-tone', style, 'aria-pressed': tone === key, title: label, 'aria-label': label, ...extra })
+  return h('span', { className: 'mpc-tones', ref: box },
+    ['blue', 'red', 'cyan'].map((x) => dot(x, { '--mpc-tone': TONE_COLORS[x] }, tr('cap.tone.' + x), { onClick: () => { setOpen(false); onPick({ tone: x }) } })),
+    dot('custom', { '--mpc-tone': tone === 'custom' ? color : CUSTOM_SWATCH }, tr('cap.tone.custom'), { 'data-custom': '', 'aria-expanded': inline ? undefined : open,
+      onClick: () => { onPick({ tone: 'custom', color }); if (!inline) setOpen(tone !== 'custom' || !open) } }),
+    dot('holo', {}, tr('cap.tone.holo'), { 'data-holo': '', onClick: () => { setOpen(false); onPick({ tone: 'holo' }) } }),
+    inline ? (tone === 'custom' ? fields : null) : (open && tone === 'custom' ? fields : null))
+}
+
+/**
+ * Suffix capsule editor: up to CAP_MAX characters + a tone (TonePicker). Text may stay empty: that is a color-only
+ * capsule. The text color is derived automatically (capTextColor: same hue, contrast >= 4.5:1). The x removes the capsule.
  */
 function CapCell({ cap, onChange, tr }) {
   const text = cap?.text ?? ''
-  const tone = cap?.tone ?? 'blue'
-  const color = cap?.color ?? DEFAULT_CAP_COLOR
-  const emit = (patch) => onChange({ text, tone, ...(tone === 'custom' ? { color } : {}), ...patch })
+  const emit = (patch) => onChange({ text, tone: cap?.tone ?? 'blue', ...(cap?.tone === 'custom' ? { color: cap.color } : {}), ...patch })
   return h('div', { className: 'mpc-capCell' },
     h(CommitInput, { value: text, 'aria-label': tr('cap.text'), title: tr('cap.text'), maxLength: CAP_MAX,
       onCommit: (v) => emit({ text: Array.from(v.trim()).slice(0, CAP_MAX).join('') }) }),
-    ['blue', 'red', 'cyan'].map((x) => h('button', { key: x, type: 'button', className: 'mpc-tone', style: { '--mpc-tone': TONE_COLORS[x] }, 'aria-pressed': tone === x, disabled: text === '',
-      title: tr('cap.tone.' + x), 'aria-label': tr('cap.tone.' + x), onClick: () => onChange({ text, tone: x }) })),
-    h('button', { type: 'button', className: 'mpc-tone', 'data-custom': '', style: { '--mpc-tone': tone === 'custom' ? color : CUSTOM_SWATCH }, 'aria-pressed': tone === 'custom', disabled: text === '',
-      title: tr('cap.tone.custom'), 'aria-label': tr('cap.tone.custom'), onClick: () => onChange({ text, tone: 'custom', color }) }),
-    tone === 'custom' && h('div', { className: 'mpc-capColor' },
-      h('input', { type: 'color', value: color, 'aria-label': tr('cap.color'), title: tr('cap.color'), onChange: (e) => onChange({ text, tone: 'custom', color: parseColor(e.target.value) ?? color }) }),
-      h(CommitInput, { value: color, placeholder: '#RRGGBB / R,G,B', 'aria-label': tr('cap.colorText'), title: tr('cap.colorHint'), spellCheck: false,
-        validate: (v) => parseColor(v) !== undefined, onCommit: (v) => onChange({ text, tone: 'custom', color: parseColor(v) }) })))
+    h(TonePicker, { value: cap, tr, onPick: (s) => onChange({ text, tone: s.tone, ...(s.tone === 'custom' ? { color: s.color } : {}) }) }),
+    h('button', { type: 'button', className: 'mpc-capClear', disabled: cap === undefined, 'aria-label': tr('cap.none'), title: tr('cap.none'), onClick: () => onChange(undefined) }, '×'))
+}
+
+/** Eye toggle replacing the old "hide" checkboxes. hidden -> crossed eye. */
+function EyeToggle({ hidden, partial = false, onToggle, label }) {
+  return h('button', { type: 'button', className: 'mpc-eye', 'data-off': hidden ? '' : undefined, 'data-partial': partial ? '' : undefined, 'aria-pressed': hidden, title: label, 'aria-label': label, onClick: onToggle },
+    hidden ? h(IconEyeOff) : h(IconEye))
+}
+
+/** Per-section "same capsule color for every model in it" popover. */
+function BulkCap({ onApply, tr }) {
+  const [open, setOpen] = React.useState(false)
+  const [style, setStyle] = React.useState({ tone: 'blue' })
+  const box = React.useRef(null)
+  React.useEffect(() => {
+    if (!open) return undefined
+    const away = (e) => { if (box.current !== null && !box.current.contains(e.target)) setOpen(false) }
+    const esc = (e) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('pointerdown', away, true)
+    document.addEventListener('keydown', esc, true)
+    return () => { document.removeEventListener('pointerdown', away, true); document.removeEventListener('keydown', esc, true) }
+  }, [open])
+  return h('span', { className: 'mpc-bulk', ref: box },
+    h('button', { type: 'button', className: 'mpc-btn', 'aria-expanded': open, title: tr('bulk.title'), onClick: () => setOpen(!open) }, tr('bulk.open')),
+    open && h('div', { className: 'mpc-pop', role: 'dialog', 'aria-label': tr('bulk.title') },
+      h('div', { className: 'mpc-hint' }, tr('bulk.hint')),
+      h(TonePicker, { value: style, tr, inline: true, onPick: setStyle }),
+      h('button', { type: 'button', className: 'mpc-btn mpc-applyBtn', onClick: () => { onApply(style); setOpen(false) } }, tr('bulk.apply'))))
 }
 
 function createSettings(env) {
@@ -183,6 +258,7 @@ function createSettings(env) {
     }
 
     const sectionIds = effectiveSectionIds(groups, cfg)
+    const emptyCaps = countEmptyCaps(cfg)
     const groupById = new Map(groups.map((g) => [g.id, g]))
     const nameOfSection = (id) => id.startsWith(PARTITION_PREFIX)
       ? cfg.partitions.find((p) => PARTITION_PREFIX + p.id === id)?.name ?? id
@@ -254,34 +330,45 @@ const release = (key) => familyApi.cooldown(key === undefined ? {} : { key }).th
               }, '⋮⋮'),
               h(CommitInput, { className: 'mpc-grow', value: nameOfSection(id), restore: isPartition ? undefined : (groupById.get(id)?.name ?? id), 'aria-label': tr('sections.name'),
                 onCommit: (v) => setSection(id, { name: isPartition ? (v.trim() === '' ? nameOfSection(id) : v) : (v.trim() === (groupById.get(id)?.name ?? id) ? undefined : v.trim()) }) }),
-              h('span', { className: 'mpc-hint' }, isPartition ? tr('sections.partition') : tr('sections.provider')),
+              h('span', { className: 'mpc-kind' }, isPartition ? tr('sections.partition') : tr('sections.provider')),
               h('select', { value: cfg.sort.bySection[id] ?? '', 'aria-label': tr('sections.sort'), onChange: (e) => edit((c) => { const bySection = { ...c.sort.bySection }; if (e.target.value === '') delete bySection[id]; else bySection[id] = e.target.value; return { ...c, sort: { ...c.sort, bySection } } }) },
                 h('option', { value: '' }, tr('sort.inherit')), sortOptions),
-              h(Check, { checked: sectionHidden(id), onChange: (v) => setSection(id, { hidden: v }), label: tr('action.hide') }),
-              isPartition && h('button', { type: 'button', className: 'mpc-btn mpc-danger', onClick: () => edit((c) => removePartition(c, id.slice(PARTITION_PREFIX.length))) }, tr('action.delete')))
+              h(EyeToggle, { hidden: sectionHidden(id), onToggle: () => setSection(id, { hidden: !sectionHidden(id) }), label: tr(sectionHidden(id) ? 'action.unhide' : 'action.hide') }),
+              h(BulkCap, { tr, onApply: (style) => edit((c) => setSectionCaps(groups, c, id, style)) }),
+              isPartition ? h('button', { type: 'button', className: 'mpc-btn mpc-danger', onClick: () => edit((c) => removePartition(c, id.slice(PARTITION_PREFIX.length))) }, tr('action.delete')) : h('span', null))
           }),
           h('div', { className: 'mpc-row' },
             h('input', { type: 'text', className: 'mpc-grow', value: newPartition, placeholder: tr('partition.placeholder'), onChange: (e) => setNewPartition(e.target.value),
               onKeyDown: (e) => { if (e.key === 'Enter') addNewPartition() } }),
-            h('button', { type: 'button', className: 'mpc-btn', disabled: newPartition.trim() === '', onClick: addNewPartition }, tr('partition.add')))))),
+            h('button', { type: 'button', className: 'mpc-btn', disabled: newPartition.trim() === '', onClick: addNewPartition }, tr('partition.add'))),
+          h('div', { className: 'mpc-row' },
+            h('button', { type: 'button', className: 'mpc-btn', disabled: emptyCaps === 0, onClick: () => edit((c) => clearEmptyCaps(c)) }, tr('bulk.clearEmpty')),
+            h('span', { className: 'mpc-hint' }, tr('bulk.clearEmptyHint', { count: emptyCaps })))))),
 
 
       h('section', { className: 'mpc-sec' }, h(Fold, { id: 'models', ...foldProps, title: h('h3', null, tr('models.title')) },
         h('div', { className: 'mpc-hint' }, tr('models.hint')),
         h('div', { className: 'mpc-cards' }, groups.map((g) => h('div', { key: g.id, className: 'mpc-card' },
-          h(Fold, { id: 'models:' + g.id, ...foldProps, title: h('span', { className: 'mpc-sub', title: g.id }, cfg.providers[g.id]?.name ?? g.name), summary: tr('models.count', { count: g.models.length }) },
+          h(Fold, { id: 'models:' + g.id, ...foldProps, title: h('span', { className: 'mpc-sub', title: g.id }, cfg.providers[g.id]?.name ?? g.name), summary: tr('models.count', { count: g.models.length }),
+            actions: (() => {
+              const keys = g.models.map((m) => modelKey(g.id, m.id))
+              const hiddenCount = keys.filter((k) => cfg.models[k]?.hidden === true).length
+              const all = keys.length > 0 && hiddenCount === keys.length
+              return h(EyeToggle, { hidden: all, partial: hiddenCount > 0 && !all, label: tr(all ? 'models.showAll' : 'models.hideAll'),
+                onToggle: () => edit((c) => setModelsHidden(c, keys, !all)) })
+            })() },
           h('div', { className: 'mpc-model mpc-modelHead' }, ['name', 'suffix', 'partition', 'hide'].map((k) => h('span', { key: k }, tr(`models.col.${k}`)))),
           g.models.map((m) => {
             const key = modelKey(g.id, m.id)
             const ov = cfg.models[key] ?? {}
             const set = (patch) => edit((c) => setModelOverride(c, key, patch))
-            const setCap = (cap) => set({ suffix: cap.text === '' ? undefined : cap })
+            const setCap = (cap) => set({ suffix: cap })
             return h('div', { key: m.id, className: 'mpc-model' },
               h(CommitInput, { value: ov.name ?? m.name, restore: m.name, title: m.name, onCommit: (v) => set({ name: v.trim() === m.name ? undefined : v.trim() }) }),
               h(CapCell, { cap: ov.suffix, onChange: setCap, tr }),
               h('select', { value: ov.partition ?? '', onChange: (e) => set({ partition: e.target.value }) },
                 h('option', { value: '' }, tr('models.noPartition')), cfg.partitions.map((p) => h('option', { key: p.id, value: p.id }, p.name))),
-              h('div', { className: 'mpc-modelHide' }, h(Check, { checked: ov.hidden === true, onChange: (v) => set({ hidden: v }), title: tr('action.hide') })))
+              h('div', { className: 'mpc-modelHide' }, h(EyeToggle, { hidden: ov.hidden === true, onToggle: () => set({ hidden: ov.hidden !== true }), label: tr(ov.hidden === true ? 'action.unhide' : 'action.hide') })))
           }))))))),
 
       h('section', { className: 'mpc-sec' }, h(Fold, { id: 'preview', ...foldProps, title: h('h3', null, tr('preview.title')) },
@@ -290,7 +377,7 @@ const release = (key) => familyApi.cooldown(key === undefined ? {} : { key }).th
           h(ModelPreview, { groups, cfg, tr, accountName, onMove: (sid, key, d) => edit((c) => moveModel(groups, c, sid, key, d)),
             onMoveTo: (sid, key, target, after) => edit((c) => moveModelTo(groups, c, sid, key, target, after)), onTempHide: tempHide, onClearTempHidden: clearTemp,
             onMerge: (sid, key, target) => edit((c) => mergeIntoFamily(groups, c, sid, key, target)), cooldowns, onRelease: release,
-            onFamily: { rename: (id, name) => edit((c) => setFamily(c, id, { name })), cap: (id, cap) => edit((c) => setFamily(c, id, { suffix: cap.text === '' ? undefined : cap })),
+            onFamily: { rename: (id, name) => edit((c) => setFamily(c, id, { name })), cap: (id, cap) => edit((c) => setFamily(c, id, { suffix: cap })),
               dissolve: (id) => edit((c) => dissolveFamily(groups, c, id)), ungroup: (id, key) => edit((c) => ungroupMember(groups, c, id, key)),
               moveMember: (id, key, delta) => edit((c) => moveFamilyMember(c, id, key, delta)), moveMemberTo: (id, key, target, after) => edit((c) => moveFamilyMemberTo(c, id, key, target, after)) } })))),
 

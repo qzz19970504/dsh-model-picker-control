@@ -8,6 +8,9 @@ const PREVIEW_CSS = `
 .mpc-set .mpc-foldChevron{flex:none;color:var(--dsw-alias-label-tertiary);transition:transform .12s}
 .mpc-set .mpc-fold[aria-expanded=false] .mpc-foldChevron{transform:rotate(-90deg)}
 .mpc-set .mpc-foldSummary{color:var(--dsw-alias-label-tertiary);font-size:12px;font-weight:400;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.mpc-set .mpc-foldHead{display:flex;align-items:center;gap:6px;min-width:0}
+.mpc-set .mpc-foldHead .mpc-fold{flex:1;min-width:0;width:auto}
+.mpc-set .mpc-foldActions{flex:none;width:36px;display:flex;justify-content:center}
 .mpc-set .mpc-foldBody{display:flex;flex-direction:column;gap:10px;min-width:0}
 .mpc-set .mpc-foldBody[hidden]{display:none}
 .mpc-set .mpc-pv{max-height:420px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding:4px;border-radius:var(--dsw-radius-lg);background:var(--dsw-alias-bg-layer-1)}
@@ -56,13 +59,15 @@ function useFolded() {
 }
 
 /** Header button + body. `title` is a node (h3 / provider name); `summary` is the dim text shown beside it. */
-function Fold({ id, folded, onToggle, title, summary, children, className }) {
+function Fold({ id, folded, onToggle, title, summary, children, className, actions }) {
   const open = !folded.has(id)
   const bodyId = `mpc-fold-${id.replace(/[^a-z0-9_-]/gi, '_')}`
   return h('div', { className: cx('mpc-foldWrap', className), style: { display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 } },
-    h('button', { type: 'button', className: 'mpc-fold', 'aria-expanded': open, 'aria-controls': bodyId, onClick: () => onToggle(id) },
-      h(IconChevronDown, { className: 'mpc-foldChevron' }), title,
-      summary ? h('span', { className: 'mpc-foldSummary' }, summary) : null),
+    h('div', { className: 'mpc-foldHead' },
+      h('button', { type: 'button', className: 'mpc-fold', 'aria-expanded': open, 'aria-controls': bodyId, onClick: () => onToggle(id) },
+        h(IconChevronDown, { className: 'mpc-foldChevron' }), title,
+        summary ? h('span', { className: 'mpc-foldSummary' }, summary) : null),
+      actions ? h('span', { className: 'mpc-foldActions' }, actions) : null),
     h('div', { id: bodyId, className: 'mpc-foldBody', hidden: !open }, children))
 }
 

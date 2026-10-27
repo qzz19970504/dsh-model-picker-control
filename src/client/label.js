@@ -16,7 +16,8 @@ function useStore(store) {
 
 function Cap({ cap }) {
   if (cap === undefined || cap.text === undefined) return null
-  const style = { minWidth: 'calc(4ch + 16px)', justifyContent: 'center' }
+  const empty = cap.text === ''
+  const style = empty ? { width: 30, height: 19, padding: 0 } : { minWidth: 'calc(4ch + 16px)', justifyContent: 'center' }
   if (cap.tone === 'custom') {
     // Free color: solid fill, text in the same hue pushed to >= 4.5:1 contrast (capTextColor), hairline edge for white-on-light.
     const bg = cap.color ?? DEFAULT_CAP_COLOR
@@ -24,7 +25,7 @@ function Cap({ cap }) {
     style.color = capTextColor(bg)
     style.boxShadow = 'inset 0 0 0 .5px color-mix(in srgb, ' + style.color + ' 35%, transparent)'
   }
-  return h(Tag, { tone: cap.tone === 'custom' ? 'custom' : cap.tone, style }, cap.text)
+  return h(Tag, { tone: cap.tone, style, 'aria-hidden': empty ? true : undefined }, cap.text)
 }
 
 /** Pure label (name + capsule + host 1017 tag); the settings preview renders it straight from the draft config. */

@@ -4,7 +4,7 @@
 
 <p align="center"><strong>Model picker control for DSH</strong> — <em>rename, regroup, sort, hide and badge every model in one place.</em></p>
 
-<p align="center"><sub>cross-provider partitions · rename models &amp; groups · drag-to-reorder · hide a provider or a single model · suffix capsules · one-click restore</sub></p>
+<p align="center"><sub>cross-provider partitions · rename models &amp; groups · drag-to-reorder · hide a provider or a single model · suffix capsules · model folders with quota failover · one-click restore</sub></p>
 
 <p align="center">
 <a href="https://www.npmjs.com/package/dsh-model-picker-control"><img src="https://img.shields.io/npm/v/dsh-model-picker-control.svg?style=flat-square" alt="npm"></a>
@@ -39,11 +39,11 @@ This plugin gives you one settings page — sitting next to the built-in **Model
 | **Rename anything** | Model display names, provider group names, and a short suffix capsule per model. |
 | **Cross-provider partitions** | Create a partition and drop models into it from any provider — they render as one group. |
 | **Drag to reorder** | Reorder provider groups and partitions with a handle (or focus it and press <kbd>↑</kbd> <kbd>↓</kbd>). |
-| **Hide, don't delete** | Hide a whole provider or a single model. Nothing is removed from the catalog. |
-| **In-group order** | Catalog order, or by model name. Per group or globally. |
-| **Suffix capsules** | A host-native pill after the name — blue, dark red or cyan — that sits beside the host's own `1017` tag. |
-| **Model folders** | In the preview card, drag a row onto the middle of another row of the same group to merge them into a folder (a "family"). The folder takes one row in the picker, can carry a capsule, and its members run top to bottom: when a request fails with an exhausted quota, rate limit or auth error, the next member takes over and the request is resent as a normal model switch; the failed member rests until local midnight. Standalone, no other plugin needed. |
-| **Preview & temporary hide** | A live preview card: drag models into order, and an eye button hides exhausted models for now. |
+| **Hide, don't delete** | Hide a single model with the eye button; the eye on a provider card hides or shows all of its models at once. Nothing is removed from the catalog. |
+| **In-group order** | Catalog order, by model name, or manual (drag in the preview). Per group or globally. |
+| **Suffix capsules** | A host-native pill after the name — blue, dark red, cyan, any custom color or a holographic border — that sits beside the host's own `1017` tag. The text may be empty (a color-only chip). Per section, **Capsule color** paints every model in it at once, and **Clear empty capsules** removes the text-less ones. |
+| **Model folders** | In the preview card, drag a row onto the middle of another row of the same group to merge them into a folder (a "family"). The folder takes one row in the picker, can carry a capsule, and its members run top to bottom: when a request fails with an exhausted quota, rate limit or auth error, the next member takes over and the request is resent as a normal model switch; the failed member rests until local midnight. Members you hid by hand, or that are hidden or outside the folder's group, are skipped. The folder offers the reasoning levels of its top member; after an automatic switch the highest level of the new member is used. Standalone, no other plugin needed. |
+| **Preview & temporary hide** | A live preview card shows the picker as it will render: drag models into order, expand folders, and use the eye button to hide exhausted models for now (saved at once, no **Save** needed). |
 | **Draft & save** | Every edit stays local until you press **Save**; leaving the page with changes asks first. |
 | **Restore** | One click clears the plugin's settings; the host default returns. |
 
@@ -100,8 +100,9 @@ dsh plugin add ./dsh-model-picker-control-<version>.tgz
 1. Open **Settings → Model picker**.
 2. Under **Groups and partitions**, press **New partition** and name it, for example, `Free`.
 3. In the **Models** table, pick `Free` in the partition dropdown of the models you want there — from any provider.
-4. Drag the groups into the order you like, hide what you don't use, and give the important ones a suffix capsule such as `NEW` or `cheap`.
-5. Press **Save**, then open the model picker in the composer. It matches immediately; no restart needed.
+4. Drag the groups into the order you like, hide what you don't use, and give the important ones a suffix capsule such as `NEW` or `cheap`. To color a whole partition at once, use **Capsule color** on its row.
+5. Optional: in the preview card, drag one model onto the middle of another in the same group to make a folder that fails over from top to bottom.
+6. Press **Save**, then open the model picker in the composer. It matches immediately; no restart needed.
 
 ## Configuration
 
@@ -123,6 +124,8 @@ Everything is stored under this plugin's own row in your profile config (`config
       partitions:
         - { id: p:free, name: Free }
       sort: { default: name, bySection: { workbuddy: catalog } }
+      order: { p:free: [deepseek-official/deepseek-pro] }   # used when the sort is manual
+      tempHidden: []                                          # the eye button in the preview
       badges: { show1017: true }
 ```
 
@@ -133,12 +136,14 @@ Everything is stored under this plugin's own row in your profile config (`config
 | `providers[id].name` | string | Group heading. Empty = the catalog name. |
 | `providers[id].hidden` | boolean | Hide the whole provider. |
 | `models["provider/model"].name` | string | Display name. Empty = the catalog name. |
-| `models["provider/model"].suffix` | `{text, tone}` | `tone` is `blue`, `red` or `cyan`; up to 20 characters. |
+| `models["provider/model"].suffix` | `{text, tone, color?}` | `tone` is `blue`, `red`, `cyan`, `custom` (needs `color`, `#rrggbb`, default `#ffffff`) or `holo`. Up to 20 characters; `text` may be empty for a color-only chip. |
 | `models["provider/model"].partition` | string | `p:<id>` to move it into a partition. |
 | `models["provider/model"].hidden` | boolean | Hide this single model. |
 | `partitions[]` | `{id, name}` | A partition merges models from different providers. |
-| `sort.default` | `catalog` \| `name` | In-group order. |
+| `sort.default` | `catalog` \| `name` \| `manual` | In-group order. |
 | `sort.bySection` | map | Per-section override. |
+| `order` | map | Per-section list of `provider/model` keys, used by the manual order. |
+| `tempHidden` | string[] | Models hidden with the preview eye button; folder failover skips them too. |
 | `badges.show1017` | boolean | Show or hide the host's `1017` tag next to a model. |
 | `families[]` | `{id, name, section, suffix?, members: [{provider, model}]}` | Ordered members, top first. Failover codes: `QUOTA`, `ACCOUNT_QUOTA`, `RATE_LIMIT`, `AUTH`. |
 
@@ -167,6 +172,7 @@ composer ──► slot conversation.input.model   (single, session scope)
 - The model list itself is never modified. The plugin reads `ctx.modelDirectories.directoryFor(sessionId)` and renders a section list derived from the catalog plus your config; choosing a model still goes through `directory.select()`.
 - Hiding only changes what is displayed. A saved selection that becomes invisible is left untouched — the trigger falls back to “Select model” and you can pick another one.
 - Writes are revision-checked by the settings service, rolled back on failure, and only ever touch this plugin's row — the rest of `cordis.patch.yml` is never rewritten.
+- Folder failover runs in the plugin's host half. It listens to `agent/request-error`; for `QUOTA`, `ACCOUNT_QUOTA`, `RATE_LIMIT` and `AUTH` it parks the failing member until local midnight, switches the session with the host's own `selectModel` (so the usual "model changed" notice is added) and returns `{kind: "retry"}` so the request is resent. Cooldowns live in memory and reset when DSH restarts, or with the **Restore now** button on an exhausted member.
 - The page is available in Chinese and English, following the GUI language.
 
 ## FAQ

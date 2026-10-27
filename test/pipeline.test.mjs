@@ -6,7 +6,7 @@ import {
   parseColor, capTextColor, contrastRatio, hexToRgb, setTempHidden, clearTempHidden, moveModel, moveModelTo,
   mergeIntoFamily, setFamily, dissolveFamily, ungroupMember, moveFamilyMember, moveFamilyMemberTo,
   familyTarget, pickFamilyMember, nextLocalMidnight, liveCooldowns, FAILOVER_CODES,
-  highestEffort, familyReasoning, mapEffort, relayMembers,
+  highestEffort, familyReasoning, mapEffort, relayMembers, setModelsHidden, setSectionCaps, countEmptyCaps, clearEmptyCaps,
 } from '../src/pipeline.js'
 
 const groups = [
@@ -124,7 +124,7 @@ test('capsule: custom color is normalized, default white, presets unchanged', ()
   assert.deepEqual(normalizeCap({ text: 'x', tone: 'custom', color: '#ABC' }), { text: 'x', tone: 'custom', color: '#aabbcc' })
   assert.deepEqual(normalizeCap({ text: 'x', tone: 'custom', color: 'nope' }), { text: 'x', tone: 'custom', color: '#ffffff' })
   assert.deepEqual(normalizeCap({ text: 'x', tone: 'red', color: '#123456' }), { text: 'x', tone: 'red' })
-  assert.equal(normalizeCap({ text: '', tone: 'custom', color: '#123456' }), undefined)
+  assert.deepEqual(normalizeCap({ text: '', tone: 'custom', color: '#123456' }), { text: '', tone: 'custom', color: '#123456' }) // color-only chip
 })
 
 test('parseColor accepts hex and RGB spellings, rejects junk', () => {
@@ -295,4 +295,35 @@ test('relayMembers: hidden / moved members never receive a relayed request', () 
   }
   assert.deepEqual(relayMembers(fam, raw).map((m) => m.provider), ['relayA', 'relayB'])
   assert.equal(pickFamilyMember(relayMembers(fam, raw), {}, Date.now())?.provider, 'relayA')
+})
+
+test('holo tone, color-only capsules, bulk color and clearing empty capsules', () => {
+  assert.deepEqual(normalizeCap({ text: 'x', tone: 'holo' }), { text: 'x', tone: 'holo' })
+  assert.equal(normalizeCap({ text: '', tone: 'blue' }).text, '')
+  assert.equal(normalizeCap({ text: '' }), undefined) // empty text without a tone is still "no capsule"
+  const g = [{ id: 'a', name: 'A', models: [{ id: 'm1', name: 'M1' }, { id: 'm2', name: 'M2' }, { id: 'm3', name: 'M3' }] }]
+  let cfg = normalizeConfig({ models: { 'a/m1': { suffix: { text: 'Hi', tone: 'red' } }, 'a/m3': { hidden: true } } })
+  cfg = setSectionCaps(g, cfg, 'a', { tone: 'custom', color: '#336699' })
+  assert.deepEqual(cfg.models['a/m1'].suffix, { text: 'Hi', tone: 'custom', color: '#336699' }) // text kept
+  assert.deepEqual(cfg.models['a/m2'].suffix, { text: '', tone: 'custom', color: '#336699' }) // color-only chip
+  assert.equal(cfg.models['a/m3'].suffix, undefined) // hidden models are not part of the section, left alone
+  assert.equal(countEmptyCaps(cfg), 1)
+  cfg = clearEmptyCaps(cfg)
+  assert.equal(cfg.models['a/m2'], undefined) // override left empty is dropped
+  assert.equal(cfg.models['a/m1'].suffix.text, 'Hi')
+  assert.equal(cfg.models['a/m3'].hidden, true)
+  assert.equal(countEmptyCaps(cfg), 0)
+  cfg = setSectionCaps(g, cfg, 'a', { tone: 'holo' })
+  assert.equal(cfg.models['a/m1'].suffix.tone, 'holo')
+})
+
+test('setModelsHidden hides and restores a whole provider at once', () => {
+  let cfg = normalizeConfig({ models: { 'a/m1': { name: 'One' } } })
+  cfg = setModelsHidden(cfg, ['a/m1', 'a/m2'], true)
+  assert.equal(cfg.models['a/m1'].hidden, true)
+  assert.equal(cfg.models['a/m1'].name, 'One') // other overrides stay
+  assert.equal(cfg.models['a/m2'].hidden, true)
+  cfg = setModelsHidden(cfg, ['a/m1', 'a/m2'], false)
+  assert.equal(cfg.models['a/m1'].hidden, undefined)
+  assert.equal(cfg.models['a/m2'], undefined) // empty override dropped
 })
