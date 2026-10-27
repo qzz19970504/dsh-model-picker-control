@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   buildSections, normalizeConfig, popupRows, addPartition, removePartition, setModelOverride,
   setProviderOverride, moveSection, moveSectionTo, effectiveSectionIds, hostProviderOrder, normalizeCap,
+  parseColor, capTextColor, contrastRatio, hexToRgb, setTempHidden, clearTempHidden, moveModel, moveModelTo,
 } from '../src/pipeline.js'
 
 const groups = [
@@ -113,4 +114,64 @@ test('drag reorder: moveSectionTo before/after target', () => {
   assert.deepEqual(g(c), ['deepseek-account', 'deepseek-official', 'workbuddy'])
   assert.deepEqual(moveSectionTo(groups, c, 'nope', 'workbuddy'), normalizeConfig(c))
   assert.deepEqual(ids(buildSections(groups, moveSectionTo(groups, undefined, 'deepseek-official', 'deepseek-account'))), ['deepseek-official', 'deepseek-account', 'workbuddy'])
+})
+
+test('capsule: custom color is normalized, default white, presets unchanged', () => {
+  assert.deepEqual(normalizeCap({ text: 'x', tone: 'custom' }), { text: 'x', tone: 'custom', color: '#ffffff' })
+  assert.deepEqual(normalizeCap({ text: 'x', tone: 'custom', color: '#ABC' }), { text: 'x', tone: 'custom', color: '#aabbcc' })
+  assert.deepEqual(normalizeCap({ text: 'x', tone: 'custom', color: 'nope' }), { text: 'x', tone: 'custom', color: '#ffffff' })
+  assert.deepEqual(normalizeCap({ text: 'x', tone: 'red', color: '#123456' }), { text: 'x', tone: 'red' })
+  assert.equal(normalizeCap({ text: '', tone: 'custom', color: '#123456' }), undefined)
+})
+
+test('parseColor accepts hex and RGB spellings, rejects junk', () => {
+  assert.equal(parseColor('#FF8800'), '#ff8800')
+  assert.equal(parseColor('ff8800'), '#ff8800')
+  assert.equal(parseColor('f80'), '#ff8800')
+  assert.equal(parseColor('255, 136, 0'), '#ff8800')
+  assert.equal(parseColor('255 136 0'), '#ff8800')
+  assert.equal(parseColor('rgb(255,136,0)'), '#ff8800')
+  for (const bad of ['', '256,0,0', '#12', '#12345', 'red', 5, undefined, '1,2']) assert.equal(parseColor(bad), undefined, String(bad))
+})
+
+test('capTextColor keeps >= 4.5:1 contrast and the same hue family on every fill', () => {
+  const fills = ['#ffffff', '#000000', '#ffff00', '#00ff00', '#0000ff', '#ff00ff', '#808080', '#777777', '#ff0000', '#00ffff', '#123456', '#fedcba', '#7f7f00', '#ff8800']
+  for (let r = 0; r < 256; r += 51) for (let g = 0; g < 256; g += 51) for (let b = 0; b < 256; b += 51) fills.push('#' + [r, g, b].map((n) => n.toString(16).padStart(2, '0')).join(''))
+  for (const fill of fills) {
+    const text = capTextColor(fill)
+    assert.ok(contrastRatio(hexToRgb(text), hexToRgb(fill)) >= 4.5, fill + ' -> ' + text)
+  }
+  // Hue is kept on a clearly tinted fill (the text is a lighter/darker shade of it, not black/white).
+  const [r, g, b] = hexToRgb(capTextColor('#3366cc'))
+  assert.ok(b > r && b >= g, 'blue-ish text on a blue fill')
+})
+
+test('temporary hide is separate from permanent hide and reversible', () => {
+  let c = setTempHidden(undefined, 'workbuddy/glm', true)
+  assert.ok(!buildSections(groups, c).byKey.has('workbuddy/glm'))
+  assert.ok(buildSections(groups, c, { includeTempHidden: true }).byKey.get('workbuddy/glm').tempHidden)
+  assert.equal(normalizeConfig(c).models['workbuddy/glm'], undefined)
+  c = setTempHidden(c, 'workbuddy/glm', false)
+  assert.ok(buildSections(groups, c).byKey.has('workbuddy/glm'))
+  c = clearTempHidden(setTempHidden(setTempHidden(c, 'a/b', true), 'workbuddy/kimi', true))
+  assert.deepEqual(c.tempHidden, [])
+})
+
+test('manual order: preview drag freezes order, new models go last, junk is dropped', () => {
+  const keys = (c) => buildSections(groups, c).sections.find((s) => s.id === 'workbuddy').entries.map((e) => e.key)
+  let c = moveModelTo(groups, undefined, 'workbuddy', 'workbuddy/abc', 'workbuddy/glm')
+  assert.deepEqual(keys(c), ['workbuddy/abc', 'workbuddy/glm', 'workbuddy/kimi'])
+  assert.equal(c.sort.bySection.workbuddy, 'manual')
+  c = moveModelTo(groups, c, 'workbuddy', 'workbuddy/abc', 'workbuddy/kimi', true)
+  assert.deepEqual(keys(c), ['workbuddy/glm', 'workbuddy/kimi', 'workbuddy/abc'])
+  c = moveModel(groups, c, 'workbuddy', 'workbuddy/abc', -1)
+  assert.deepEqual(keys(c), ['workbuddy/glm', 'workbuddy/abc', 'workbuddy/kimi'])
+  // a model the saved order does not know yet stays after the known ones
+  const extended = groups.map((g) => (g.id === 'workbuddy' ? { ...g, models: [{ id: 'new', name: 'New' }, ...g.models] } : g))
+  assert.deepEqual(buildSections(extended, c).sections.find((s) => s.id === 'workbuddy').entries.map((e) => e.key), ['workbuddy/glm', 'workbuddy/abc', 'workbuddy/kimi', 'workbuddy/new'])
+  // reordering around a temp-hidden model keeps it in place so it returns where it was
+  const t = setTempHidden(c, 'workbuddy/abc', true)
+  assert.deepEqual(keys(t), ['workbuddy/glm', 'workbuddy/kimi'])
+  assert.deepEqual(normalizeConfig({ order: { s: ['a', 'a', 5, ''], bad: 'x' } }).order, { s: ['a'] })
+  assert.equal(moveModelTo(groups, undefined, 'nope', 'a', 'b').order.nope, undefined)
 })

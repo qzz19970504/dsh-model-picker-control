@@ -4,7 +4,7 @@
 
 export const CONFIG_VERSION = 1
 export const PARTITION_PREFIX = 'p:'
-export const SORT_MODES = ['catalog', 'name']
+export const SORT_MODES = ['catalog', 'name', 'manual']
 
 /** The host's hard-coded provider order (ui-model-selection orderModelProviders). */
 export function hostProviderOrder(groups) {
@@ -23,18 +23,106 @@ export function defaultConfig() {
     models: {},
     partitions: [],
     sort: { default: 'catalog', bySection: {} },
+    order: {},
+    tempHidden: [],
     badges: { show1017: true },
   }
 }
 
-/** Suffix capsule after a model name: at most CAP_MAX characters (a sanity bound, the user decides the length) and one of three tones. Empty text = no capsule. */
+// ---- colors --------------------------------------------------------------------------------
+export const DEFAULT_CAP_COLOR = '#ffffff'
+
+const clamp255 = (n) => Math.min(255, Math.max(0, Math.round(n)))
+const toHex = (r, g, b) => '#' + [r, g, b].map((n) => clamp255(n).toString(16).padStart(2, '0')).join('')
+
+/** Accepts "#rgb", "#rrggbb", "rrggbb", "r,g,b", "r g b" and "rgb(r, g, b)" (0-255). Returns "#rrggbb" (lower case) or undefined. */
+export function parseColor(input) {
+  if (typeof input !== 'string') return undefined
+  const s = input.trim().toLowerCase()
+  let m = /^#?([0-9a-f]{3})$/.exec(s)
+  if (m) return '#' + Array.from(m[1]).map((c) => c + c).join('')
+  m = /^#?([0-9a-f]{6})$/.exec(s)
+  if (m) return '#' + m[1]
+  m = /^(?:rgb\(\s*)?(\d{1,3})\s*[,\s]\s*(\d{1,3})\s*[,\s]\s*(\d{1,3})\s*\)?$/.exec(s)
+  if (m) {
+    const n = [m[1], m[2], m[3]].map(Number)
+    if (n.every((x) => x <= 255)) return toHex(n[0], n[1], n[2])
+  }
+  return undefined
+}
+
+export function hexToRgb(hex) {
+  const h6 = parseColor(hex) ?? DEFAULT_CAP_COLOR
+  return [1, 3, 5].map((i) => parseInt(h6.slice(i, i + 2), 16))
+}
+
+function rgbToHsl([r, g, b]) {
+  r /= 255; g /= 255; b /= 255
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  const l = (max + min) / 2
+  if (max === min) return [0, 0, l]
+  const d = max - min
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+  const h = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4
+  return [h * 60, s, l]
+}
+
+function hslToRgb([h, s, l]) {
+  const c = (1 - Math.abs(2 * l - 1)) * s
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1))
+  const m = l - c / 2
+  const [r, g, b] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x]
+  return [(r + m) * 255, (g + m) * 255, (b + m) * 255]
+}
+
+/** WCAG relative luminance of an [r,g,b] (0-255) triple. */
+export function relativeLuminance([r, g, b]) {
+  const f = (v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4 }
+  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b)
+}
+
+export function contrastRatio(rgbA, rgbB) {
+  const a = relativeLuminance(rgbA)
+  const b = relativeLuminance(rgbB)
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)
+}
+
+export const MIN_CAP_CONTRAST = 4.5
+
+/**
+ * Text color for a capsule filled with `hex`: same hue and saturation as the fill, with lightness pushed away
+ * from it (darker on light fills, lighter on dark fills) in 1% steps until WCAG contrast reaches 4.5:1.
+ * Black (or white) always clears 4.5:1 on the side chosen below, so the loop is guaranteed to stop in range.
+ */
+export function capTextColor(hex) {
+  const bg = hexToRgb(hex)
+  const [h, s, l] = rgbToHsl(bg)
+  const goDark = relativeLuminance(bg) > 0.179 // the luminance where black and white contrast equally
+  const step = goDark ? -0.01 : 0.01
+  let tl = l
+  for (let i = 0; i <= 100; i++) {
+    const rgb = hslToRgb([h, s, Math.min(1, Math.max(0, tl))]).map(clamp255)
+    if (contrastRatio(rgb, bg) >= MIN_CAP_CONTRAST) return toHex(...rgb)
+    tl += step
+  }
+  return goDark ? '#000000' : '#ffffff'
+}
+
+/**
+ * Suffix capsule after a model name: at most CAP_MAX characters (a sanity bound, the user decides the length).
+ * Tone is a preset (blue / red / cyan) or `custom`, which carries a free `color` (#rrggbb, default white).
+ * Empty text = no capsule.
+ */
 export const CAP_MAX = 20
-export const CAP_TONES = ['blue', 'red', 'cyan']
+export const CAP_TONES = ['blue', 'red', 'cyan', 'custom']
 export function normalizeCap(v) {
   if (typeof v !== 'object' || v === null || Array.isArray(v)) return undefined
   const text = typeof v.text === 'string' ? Array.from(v.text.trim()).slice(0, CAP_MAX).join('') : ''
   if (text === '') return undefined
-  return { text, tone: CAP_TONES.includes(v.tone) ? v.tone : 'blue' }
+  const tone = CAP_TONES.includes(v.tone) ? v.tone : 'blue'
+  if (tone !== 'custom') return { text, tone }
+  return { text, tone, color: parseColor(v.color) ?? DEFAULT_CAP_COLOR }
 }
 
 const isObj = (v) => typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -82,13 +170,30 @@ export function normalizeConfig(raw) {
   const sort = isObj(raw.sort) ? raw.sort : {}
   out.sort = { default: SORT_MODES.includes(sort.default) ? sort.default : 'catalog', bySection: {} }
   if (isObj(sort.bySection)) for (const [k, v] of Object.entries(sort.bySection)) if (SORT_MODES.includes(v)) out.sort.bySection[k] = v
+  // Manual model order per section (section id -> model keys, top first). Used when the section's sort mode is `manual`.
+  out.order = {}
+  if (isObj(raw.order)) {
+    for (const [sid, list] of Object.entries(raw.order)) {
+      if (!Array.isArray(list)) continue
+      const keys = [...new Set(list.filter((k) => typeof k === 'string' && k !== ''))]
+      if (keys.length > 0) out.order[sid] = keys
+    }
+  }
+  // Models hidden by hand for now (e.g. quota used up), independent of the permanent `hidden` flag.
+  out.tempHidden = Array.isArray(raw.tempHidden) ? [...new Set(raw.tempHidden.filter((k) => typeof k === 'string' && k !== ''))] : []
   out.badges = { show1017: !(isObj(raw.badges) && raw.badges.show1017 === false) }
   return out
 }
 
-function sortEntries(entries, mode) {
+function sortEntries(entries, mode, order) {
   if (mode === 'catalog') return entries
   const idx = new Map(entries.map((e, i) => [e, i]))
+  if (mode === 'manual') {
+    // Listed keys first in the saved order; anything new (not listed) keeps catalog order after them.
+    const rank = new Map((order ?? []).map((k, i) => [k, i]))
+    const at = (e) => rank.get(e.key) ?? Infinity
+    return [...entries].sort((a, b) => (at(a) === at(b) ? idx.get(a) - idx.get(b) : at(a) - at(b)))
+  }
   const cmp = {
     name: (a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }),
   }[mode]
@@ -99,7 +204,8 @@ function sortEntries(entries, mode) {
  * Build the displayed sections.
  * @param groups host catalog groups [{id,name,models:[{id,name,reasoning?}]}]
  * @param rawConfig stored (possibly partial) config
- * @param opts { providerLabel?: (group)=>string }
+ * @param opts { providerLabel?: (group)=>string, includeTempHidden?: boolean } includeTempHidden keeps temporarily
+ *   hidden models (flagged `tempHidden`) in place; the settings preview uses it so they can be shown again.
  * @returns {{ sections, entries, byKey, config }} entries are the visible flat list in display order
  */
 export function buildSections(groups, rawConfig, opts = {}) {
@@ -116,6 +222,7 @@ export function buildSections(groups, rawConfig, opts = {}) {
   }
 
   const partitionIds = new Set(config.partitions.map((p) => p.id))
+  const tempHidden = new Set(config.tempHidden)
   const buckets = new Map() // section id -> section
   const sectionOf = (id, kind, name, hidden) => {
     let s = buckets.get(id)
@@ -133,7 +240,12 @@ export function buildSections(groups, rawConfig, opts = {}) {
       const target = inPartition ? buckets.get(PARTITION_PREFIX + ov.partition) : buckets.get(g.id)
       const providerHidden = config.providers[g.id]?.hidden === true
       if (ov.hidden === true || (providerHidden && !inPartition)) continue
-      target.entries.push(makeEntry(g, m, pname, ov, ov.name ?? m.name))
+      const entry = makeEntry(g, m, pname, ov, ov.name ?? m.name)
+      if (tempHidden.has(entry.key)) {
+        if (!opts.includeTempHidden) continue
+        entry.tempHidden = true
+      }
+      target.entries.push(entry)
     }
   }
 
@@ -146,7 +258,7 @@ export function buildSections(groups, rawConfig, opts = {}) {
   for (const s of all) if (!ids.includes(s.id)) ids.push(s.id)
   // New (unordered) partitions go before an unordered provider, which matches ids' construction above only when sectionOrder is empty.
   const sections = ids.map((id) => byId.get(id)).filter((s) => !s.hidden)
-  for (const s of sections) s.entries = sortEntries(s.entries, config.sort.bySection[s.id] ?? config.sort.default)
+  for (const s of sections) s.entries = sortEntries(s.entries, config.sort.bySection[s.id] ?? config.sort.default, config.order[s.id])
   return finish(sections.filter((s) => s.entries.length > 0), config, groups)
 }
 
@@ -219,6 +331,7 @@ export function removePartition(config, id) {
   next.partitions = next.partitions.filter((p) => p.id !== id)
   next.sectionOrder = next.sectionOrder.filter((s) => s !== PARTITION_PREFIX + id)
   delete next.sort.bySection[PARTITION_PREFIX + id]
+  delete next.order[PARTITION_PREFIX + id]
   for (const [k, v] of Object.entries(next.models)) if (v.partition === id) delete v.partition
   return normalizeConfig(next)
 }
@@ -253,4 +366,48 @@ export function moveSection(groups, rawConfig, id, delta) {
   if (i < 0 || j < 0 || j >= ids.length) return config
   ;[ids[i], ids[j]] = [ids[j], ids[i]]
   return normalizeConfig({ ...config, sectionOrder: ids })
+}
+
+/** Temporarily hide / show one model (the picker skips it; the settings preview still lists it). */
+export function setTempHidden(rawConfig, key, hidden) {
+  const config = normalizeConfig(rawConfig)
+  const rest = config.tempHidden.filter((k) => k !== key)
+  return normalizeConfig({ ...config, tempHidden: hidden ? [...rest, key] : rest })
+}
+
+export function clearTempHidden(rawConfig) {
+  return normalizeConfig({ ...normalizeConfig(rawConfig), tempHidden: [] })
+}
+
+/**
+ * Preview drag-and-drop: put model `key` right before (or, with `after`, right after) `targetKey` inside
+ * section `sectionId`. Freezes the section's current visible order into `order[sectionId]` and switches the
+ * section to `manual` sorting, so the result is exactly what the preview showed.
+ */
+export function moveModelTo(groups, rawConfig, sectionId, key, targetKey, after = false, opts = {}) {
+  const config = normalizeConfig(rawConfig)
+  if (key === targetKey) return config
+  const section = buildSections(groups, config, { ...opts, includeTempHidden: true }).sections.find((s) => s.id === sectionId)
+  if (section === undefined) return config
+  const keys = section.entries.map((e) => e.key)
+  if (!keys.includes(key) || !keys.includes(targetKey)) return config
+  keys.splice(keys.indexOf(key), 1)
+  keys.splice(keys.indexOf(targetKey) + (after ? 1 : 0), 0, key)
+  return normalizeConfig({
+    ...config,
+    order: { ...config.order, [sectionId]: keys },
+    sort: { ...config.sort, bySection: { ...config.sort.bySection, [sectionId]: 'manual' } },
+  })
+}
+
+/** Keyboard/button reorder: move model `key` up (-1) or down (+1) inside its section. */
+export function moveModel(groups, rawConfig, sectionId, key, delta, opts = {}) {
+  const config = normalizeConfig(rawConfig)
+  const section = buildSections(groups, config, { ...opts, includeTempHidden: true }).sections.find((s) => s.id === sectionId)
+  if (section === undefined) return config
+  const keys = section.entries.map((e) => e.key)
+  const i = keys.indexOf(key)
+  const j = i + delta
+  if (i < 0 || j < 0 || j >= keys.length) return config
+  return moveModelTo(groups, config, sectionId, key, keys[j], delta > 0, opts)
 }

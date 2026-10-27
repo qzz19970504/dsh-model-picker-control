@@ -49,7 +49,9 @@ function createSeat(env) {
     const currentVisibleIndex = visible.findIndex(isCurrent)
     const activeModelIndex = Math.min(highlightedIndex ?? Math.max(0, currentVisibleIndex), visible.length - 1)
     // A saved selection hidden (or no longer in the catalog) falls back to the host's "Select model" text.
-    const currentChoice = state.current === null ? undefined : choices.find(isCurrent)
+    // A temporarily hidden model is gone from the list but stays the selection, so its name (and effort) keep showing.
+    const currentChoice = state.current === null ? undefined : choices.find(isCurrent) ?? (cfgState.config.tempHidden.length === 0 ? undefined
+      : buildSections(state.groups, cfgState.config, { includeTempHidden: true, providerLabel: (g) => (g.id === 'deepseek-account' ? accountName : g.name) }).entries.find(isCurrent))
     const reasoning = currentChoice?.model.reasoning
     const effectiveEffort = state.current?.reasoningEffort ?? reasoning?.defaultEffort
     const effortLabel = currentChoice === undefined ? undefined

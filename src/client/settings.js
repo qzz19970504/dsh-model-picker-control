@@ -2,7 +2,7 @@
 // Edits go to a local draft; nothing is persisted until the user presses Save (configStore.save is serialized,
 // conflict-aware and rolls back if the Host refuses).
 
-const SETTINGS_CSS = `
+const SETTINGS_CSS = PREVIEW_CSS + `
 .mpc-set{min-width:0;max-width:100%;box-sizing:border-box;display:flex;flex-direction:column;gap:24px;padding:4px 2px 32px;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px}
 .mpc-set .mpc-secHead{display:flex;flex-direction:column;gap:4px}
 .mpc-set .mpc-sec{display:flex;flex-direction:column;gap:10px;min-width:0}
@@ -27,13 +27,17 @@ const SETTINGS_CSS = `
 .mpc-set .mpc-handle{flex:none;width:22px;height:28px;border:0;background:transparent;color:var(--dsw-alias-label-tertiary);cursor:grab;font-size:16px;line-height:28px;padding:0;border-radius:var(--dsw-radius-md)}
 .mpc-set .mpc-handle:hover,.mpc-set .mpc-handle:focus-visible{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
 .mpc-set .mpc-handle:active{cursor:grabbing}
-.mpc-set .mpc-model{display:grid;grid-template-columns:minmax(140px,320px) 132px 128px 40px;gap:8px 10px;align-items:center;justify-content:start}
+.mpc-set .mpc-model{display:grid;grid-template-columns:minmax(140px,320px) 176px 128px 40px;gap:8px 10px;align-items:start;justify-content:start}
 .mpc-set .mpc-model>*{min-width:0}
 .mpc-set .mpc-model input[type=text],.mpc-set .mpc-model select{width:100%;min-width:0}
 .mpc-set .mpc-modelHead{color:var(--dsw-alias-label-tertiary);font-size:11px}
 .mpc-set .mpc-modelHead>*{text-align:left;padding-left:2px}
-.mpc-set .mpc-modelHide{display:flex;justify-content:flex-start;padding-left:2px}
-.mpc-set .mpc-capCell{display:flex;align-items:center;gap:6px}
+.mpc-set .mpc-modelHide{display:flex;justify-content:flex-start;padding-left:2px;min-height:28px;align-items:center}
+.mpc-set .mpc-capCell{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-height:28px}
+.mpc-set .mpc-capColor{flex-basis:100%;display:flex;align-items:center;gap:6px}
+.mpc-set .mpc-capColor input[type=color]{width:28px;height:28px;padding:1px;border:.5px solid var(--dsw-alias-border-l4);border-radius:var(--dsw-radius-md);background:transparent;cursor:pointer}
+.mpc-set .mpc-capColor input[type=text]{width:112px;font-variant-numeric:tabular-nums}
+.mpc-set .mpc-tone[data-custom]{box-shadow:none;background:var(--mpc-tone)}
 .mpc-set .mpc-capCell input[type=text]{width:56px;flex:none;padding:0 4px;text-align:center}
 .mpc-set .mpc-tone{width:18px;height:18px;flex:none;border-radius:50%;border:2px solid transparent;padding:0;cursor:pointer;background-clip:padding-box;box-shadow:inset 0 0 0 9px var(--mpc-tone)}
 .mpc-set .mpc-tone[aria-pressed=true]{border-color:var(--dsw-alias-label-primary)}
@@ -53,11 +57,13 @@ const SETTINGS_CSS = `
 `
 
 /** Text input that commits on blur / Enter (one draft change per edit instead of one per keystroke). */
-function CommitInput({ value, onCommit, placeholder, type = 'text', restore, ...rest }) {
+function CommitInput({ value, onCommit, placeholder, type = 'text', restore, validate, ...rest }) {
   const [text, setText] = React.useState(value ?? '')
   React.useEffect(() => { setText(value ?? '') }, [value])
   // `restore`: text shown again when the field is emptied (the original name); an empty commit clears the override.
+  // `validate`: when given, text that fails it snaps back to the stored value instead of committing.
   const commit = () => {
+    if (validate !== undefined && !validate(text)) { setText(value ?? ''); return }
     if (restore !== undefined && text.trim() === '') { setText(restore); if ((value ?? '') !== restore) onCommit(''); return }
     if (text !== (value ?? '')) onCommit(text)
   }
@@ -74,16 +80,29 @@ function Check({ checked, onChange, label, disabled, title }) {
 }
 
 const TONE_COLORS = { blue: 'var(--dsw-alias-state-business-primary)', red: '#d9544f', cyan: '#1fb89a' }
+const CUSTOM_SWATCH = 'conic-gradient(#e5484d,#f5a524,#30a46c,#0091ff,#8e4ec6,#e5484d)'
 
-/** Suffix capsule editor: up to CAP_MAX characters + one of three tones (empty text = no capsule). */
+/**
+ * Suffix capsule editor: up to CAP_MAX characters + a preset tone (blue / red / cyan) or a custom color
+ * (color picker, or hex / RGB text; default white). The capsule text color is derived automatically
+ * (capTextColor: same hue, contrast >= 4.5:1). Empty text = no capsule.
+ */
 function CapCell({ cap, onChange, tr }) {
   const text = cap?.text ?? ''
   const tone = cap?.tone ?? 'blue'
+  const color = cap?.color ?? DEFAULT_CAP_COLOR
+  const emit = (patch) => onChange({ text, tone, ...(tone === 'custom' ? { color } : {}), ...patch })
   return h('div', { className: 'mpc-capCell' },
     h(CommitInput, { value: text, 'aria-label': tr('cap.text'), title: tr('cap.text'), maxLength: CAP_MAX,
-      onCommit: (v) => onChange({ text: Array.from(v.trim()).slice(0, CAP_MAX).join(''), tone }) }),
-    CAP_TONES.map((t) => h('button', { key: t, type: 'button', className: 'mpc-tone', style: { '--mpc-tone': TONE_COLORS[t] }, 'aria-pressed': tone === t, disabled: text === '',
-      title: tr(`cap.tone.${t}`), 'aria-label': tr(`cap.tone.${t}`), onClick: () => onChange({ text, tone: t }) })))
+      onCommit: (v) => emit({ text: Array.from(v.trim()).slice(0, CAP_MAX).join('') }) }),
+    ['blue', 'red', 'cyan'].map((x) => h('button', { key: x, type: 'button', className: 'mpc-tone', style: { '--mpc-tone': TONE_COLORS[x] }, 'aria-pressed': tone === x, disabled: text === '',
+      title: tr('cap.tone.' + x), 'aria-label': tr('cap.tone.' + x), onClick: () => onChange({ text, tone: x }) })),
+    h('button', { type: 'button', className: 'mpc-tone', 'data-custom': '', style: { '--mpc-tone': tone === 'custom' ? color : CUSTOM_SWATCH }, 'aria-pressed': tone === 'custom', disabled: text === '',
+      title: tr('cap.tone.custom'), 'aria-label': tr('cap.tone.custom'), onClick: () => onChange({ text, tone: 'custom', color }) }),
+    tone === 'custom' && h('div', { className: 'mpc-capColor' },
+      h('input', { type: 'color', value: color, 'aria-label': tr('cap.color'), title: tr('cap.color'), onChange: (e) => onChange({ text, tone: 'custom', color: parseColor(e.target.value) ?? color }) }),
+      h(CommitInput, { value: color, placeholder: '#RRGGBB / R,G,B', 'aria-label': tr('cap.colorText'), title: tr('cap.colorHint'), spellCheck: false,
+        validate: (v) => parseColor(v) !== undefined, onCommit: (v) => onChange({ text, tone: 'custom', color: parseColor(v) }) })))
 }
 
 function createSettings(env) {
@@ -102,6 +121,8 @@ function createSettings(env) {
     const [newPartition, setNewPartition] = React.useState('')
     const [drag, setDrag] = React.useState(null) // { id, over, after }
     const [confirmReset, setConfirmReset] = React.useState(false)
+    const [folded, toggleFold] = useFolded()
+    const accountName = env.tHost('provider.account')
 
     const edit = (change) => {
       const next = normalizeConfig(change(draftRef.current ?? configStore.getConfig()))
@@ -180,6 +201,17 @@ function createSettings(env) {
           : dirty ? h('span', { className: 'mpc-status', 'data-tone': 'warn' }, tr('status.unsaved'))
             : h('span', { className: 'mpc-status mpc-hint' }, tr('status.saved'))
 
+    // A temporary hide takes effect at once (no Save needed). The draft, if any, is kept in step so it does not turn dirty.
+    const tempHide = (key, hidden) => {
+      if (draftRef.current !== null) edit((c) => setTempHidden(c, key, hidden))
+      configStore.save((c) => setTempHidden(c, key, hidden))
+    }
+    const clearTemp = () => {
+      if (draftRef.current !== null) edit((c) => clearTempHidden(c))
+      configStore.save((c) => clearTempHidden(c))
+    }
+    const foldProps = { folded, onToggle: toggleFold }
+
     const dropPosition = (event) => {
       const rect = event.currentTarget.getBoundingClientRect()
       return event.clientY > rect.top + rect.height / 2
@@ -188,15 +220,16 @@ function createSettings(env) {
     return h('div', { className: 'mpc-set' },
       h('div', { className: 'mpc-hint' }, tr('intro')),
 
-      h('section', { className: 'mpc-sec' }, h('div', { className: 'mpc-secHead' }, h('h3', null, tr('general.title'))),
+      h('section', { className: 'mpc-sec' }, h(Fold, { id: 'general', ...foldProps, title: h('h3', null, tr('general.title')) },
         h('div', { className: 'mpc-card' },
           h('div', { className: 'mpc-row' }, h(Check, { checked: cfg.enabled, onChange: (v) => edit((c) => ({ ...c, enabled: v })), label: tr('general.enabled') }),
             h('span', { className: 'mpc-hint' }, tr('general.enabledHint'))),
           h('div', { className: 'mpc-row' }, h(Check, { checked: cfg.badges.show1017, onChange: (v) => edit((c) => ({ ...c, badges: { ...c.badges, show1017: v } })), label: tr('general.show1017') })),
           h('div', { className: 'mpc-row' }, h('label', null, tr('general.defaultSort'),
-            h('select', { value: cfg.sort.default, onChange: (e) => edit((c) => ({ ...c, sort: { ...c.sort, default: e.target.value } })) }, sortOptions))))),
+            h('select', { value: cfg.sort.default, onChange: (e) => edit((c) => ({ ...c, sort: { ...c.sort, default: e.target.value } })) }, sortOptions)))))),
 
-      h('section', { className: 'mpc-sec' }, h('div', { className: 'mpc-secHead' }, h('h3', null, tr('sections.title')), h('div', { className: 'mpc-hint' }, tr('sections.hint'))),
+      h('section', { className: 'mpc-sec' }, h(Fold, { id: 'sections', ...foldProps, title: h('h3', null, tr('sections.title')) },
+        h('div', { className: 'mpc-hint' }, tr('sections.hint')),
         h('div', { className: 'mpc-card' },
           groups.length === 0 && h('div', { className: 'mpc-hint' }, tr('catalog.empty')),
           sectionIds.map((id, i) => {
@@ -226,11 +259,18 @@ function createSettings(env) {
           h('div', { className: 'mpc-row' },
             h('input', { type: 'text', className: 'mpc-grow', value: newPartition, placeholder: tr('partition.placeholder'), onChange: (e) => setNewPartition(e.target.value),
               onKeyDown: (e) => { if (e.key === 'Enter') addNewPartition() } }),
-            h('button', { type: 'button', className: 'mpc-btn', disabled: newPartition.trim() === '', onClick: addNewPartition }, tr('partition.add'))))),
+            h('button', { type: 'button', className: 'mpc-btn', disabled: newPartition.trim() === '', onClick: addNewPartition }, tr('partition.add')))))),
 
-      h('section', { className: 'mpc-sec' }, h('div', { className: 'mpc-secHead' }, h('h3', null, tr('models.title')), h('div', { className: 'mpc-hint' }, tr('models.hint'))),
+      h('section', { className: 'mpc-sec' }, h(Fold, { id: 'preview', ...foldProps, title: h('h3', null, tr('preview.title')) },
+        h('div', { className: 'mpc-hint' }, tr('preview.hint')),
+        h('div', { className: 'mpc-card' },
+          h(ModelPreview, { groups, cfg, tr, accountName, onMove: (sid, key, d) => edit((c) => moveModel(groups, c, sid, key, d)),
+            onMoveTo: (sid, key, target, after) => edit((c) => moveModelTo(groups, c, sid, key, target, after)), onTempHide: tempHide, onClearTempHidden: clearTemp })))),
+
+      h('section', { className: 'mpc-sec' }, h(Fold, { id: 'models', ...foldProps, title: h('h3', null, tr('models.title')) },
+        h('div', { className: 'mpc-hint' }, tr('models.hint')),
         h('div', { className: 'mpc-cards' }, groups.map((g) => h('div', { key: g.id, className: 'mpc-card' },
-          h('div', { className: 'mpc-sub', title: g.id }, cfg.providers[g.id]?.name ?? g.name),
+          h(Fold, { id: 'models:' + g.id, ...foldProps, title: h('span', { className: 'mpc-sub', title: g.id }, cfg.providers[g.id]?.name ?? g.name), summary: tr('models.count', { count: g.models.length }) },
           h('div', { className: 'mpc-model mpc-modelHead' }, ['name', 'suffix', 'partition', 'hide'].map((k) => h('span', { key: k }, tr(`models.col.${k}`)))),
           g.models.map((m) => {
             const key = modelKey(g.id, m.id)
@@ -243,7 +283,7 @@ function createSettings(env) {
               h('select', { value: ov.partition ?? '', onChange: (e) => set({ partition: e.target.value }) },
                 h('option', { value: '' }, tr('models.noPartition')), cfg.partitions.map((p) => h('option', { key: p.id, value: p.id }, p.name))),
               h('div', { className: 'mpc-modelHide' }, h(Check, { checked: ov.hidden === true, onChange: (v) => set({ hidden: v }), title: tr('action.hide') })))
-          }))))),
+          }))))))),
 
       h('section', { className: 'mpc-sec' }, h('div', { className: 'mpc-secHead' }, h('h3', null, tr('reset.title'))),
         h('div', { className: 'mpc-row' }, confirmReset
