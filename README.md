@@ -41,8 +41,9 @@ This plugin gives you one settings page — sitting next to the built-in **Model
 | **Drag to reorder** | Reorder provider groups and partitions with a handle (or focus it and press <kbd>↑</kbd> <kbd>↓</kbd>). |
 | **Hide, don't delete** | Hide a single model with the eye button; the eye on a provider card hides or shows all of its models at once. Nothing is removed from the catalog. |
 | **In-group order** | Catalog order, by model name, or manual (drag in the preview). Per group or globally. |
-| **Suffix capsules** | A host-native pill after the name — blue, dark red, cyan, any custom color or a holographic border — that sits beside the host's own `1017` tag. The text may be empty (a color-only chip). Per section, **Capsule color** paints every model in it at once, and **Clear empty capsules** removes the text-less ones. |
-| **Model folders** | In the preview card, drag a row onto the middle of another row of the same group to merge them into a folder (a "family"). The folder takes one row in the picker, can carry a capsule, and its members run top to bottom: when a request fails with an exhausted quota, rate limit or auth error, the next member takes over and the request is resent as a normal model switch; the failed member rests until local midnight. Members you hid by hand, or that are hidden or outside the folder's group, are skipped. The folder offers the reasoning levels of its top member; after an automatic switch the highest level of the new member is used. Standalone, no other plugin needed. |
+| **Suffix capsules** | A host-native pill after the name — blue, dark red, cyan, any custom color or a holographic border — that sits beside the host's own `1017` tag. The text may be empty (a color-only chip). Per section, **Capsules** paints every model in it at once, and **Clear empty capsules** removes the text-less ones. |
+| **Model folders** | In the preview card, drag a row onto the middle of another row of the same group to merge them into a folder (a "family"). The folder takes one row in the picker, can carry a capsule, and its members run top to bottom: when a request fails with an exhausted quota, rate limit, auth error, network error or a provider refusal (HTTP 400/403/404), the next member takes over and the request is resent as a normal model switch; a failed member rests until local midnight (quota, auth), 10 minutes (network) or 1 hour (refusal). Members you hid by hand, or that are hidden or outside the folder's group, are skipped. The folder offers the reasoning levels of its top member; after an automatic switch the highest level of the new member is used, and a level the model does not offer is fitted before the request instead of failing the turn. Standalone, no other plugin needed. |
+| **Section headings** | A bold serif heading (embedded Playfair Display for Latin text) on a dark band that fades from left to right. **Settings → General → Styled section headings** turns it off and restores the original DSH heading. |
 | **Preview & temporary hide** | A live preview card shows the picker as it will render: drag models into order, expand folders, and use the eye button to hide exhausted models for now (saved at once, no **Save** needed). |
 | **Draft & save** | Every edit stays local until you press **Save**; leaving the page with changes asks first. |
 | **Restore** | One click clears the plugin's settings; the host default returns. |
@@ -115,7 +116,7 @@ dsh plugin add ./dsh-model-picker-control-<version>.tgz
 1. Open **Settings → Model picker**.
 2. Under **Groups and partitions**, press **New partition** and name it, for example, `Free`.
 3. In the **Models** table, pick `Free` in the partition dropdown of the models you want there — from any provider.
-4. Drag the groups into the order you like, hide what you don't use, and give the important ones a suffix capsule such as `NEW` or `cheap`. To color a whole partition at once, use **Capsule color** on its row.
+4. Drag the groups into the order you like, hide what you don't use, and give the important ones a suffix capsule such as `NEW` or `cheap`. To color a whole partition at once, use **Capsules** on its row.
 5. Optional: in the preview card, drag one model onto the middle of another in the same group to make a folder that fails over from top to bottom.
 6. Press **Save**, then open the model picker in the composer. It matches immediately; no restart needed.
 
@@ -142,6 +143,7 @@ Everything is stored under this plugin's own row in your profile config (`config
       order: { p:free: [deepseek-official/deepseek-pro] }   # used when the sort is manual
       tempHidden: []                                          # the eye button in the preview
       badges: { show1017: true }
+      headings: { art: true }
 ```
 
 | Key | Type | Notes |
@@ -160,6 +162,7 @@ Everything is stored under this plugin's own row in your profile config (`config
 | `order` | map | Per-section list of `provider/model` keys, used by the manual order. |
 | `tempHidden` | string[] | Models hidden with the preview eye button; folder failover skips them too. |
 | `badges.show1017` | boolean | Show or hide the host's `1017` tag next to a model. |
+| `headings.art` | boolean | Styled section headings (serif face on a fading band). `false` restores DSH's own section heading. |
 | `families[]` | `{id, name, section, suffix?, members: [{provider, model}]}` | Ordered members, top first. Failover triggers: quota/auth codes (`QUOTA`, `ACCOUNT_QUOTA`, `RATE_LIMIT`, `AUTH`), network codes (`TRANSPORT`, `SERVER`, `TIMEOUT`) and provider refusals (HTTP 400/403/404). |
 
 ## How it works

@@ -7,6 +7,7 @@ Newest first. Chinese and English per version. Only user-visible changes; see `g
 
 | 版本 | 日期 | npm | 说明 |
 | --- | --- | --- | --- |
+| 0.4.9 | 2026-10-29 | 待发布 | 收录 0.4.7、0.4.8 的全部改动 |
 | 0.4.8 | 2026-10-28 | — | 已 tag `v0.4.8`,未发布 |
 | 0.4.7 | 2026-10-28 | — | 已 tag `v0.4.7`,未发布 |
 | 0.4.6 | 2026-10-28 | — | 未 tag、未发布 |
@@ -23,6 +24,28 @@ Newest first. Chinese and English per version. Only user-visible changes; see `g
 `0.3.0`–`0.3.2`、`0.4.0`、`0.4.1` 是本地验证用的中间版本,没有单独发布,改动并入后一版。
 
 ---
+
+## 0.4.9 — 2026-10-29
+
+**中文**
+
+- **修复:文件夹接力带着不被支持的思考强度导致整轮失败。** 宿主在发请求前会检查模型是否声明了所选强度,不支持就直接报 `UNSUPPORTED_REASONING_EFFORT` 并结束整轮,这发生在“请求出错”回调之前,接力没法事后补救。现在已绑定文件夹的会话每次请求前,会按目标模型此刻声明的档位校正强度:模型提供就保留;不提供就用它的最高档;模型当前完全不声明推理(例如目录回退到不含强度档位的静态表)就去掉强度参数。没绑定文件夹的会话不受这个保护。
+- **普通胶囊更有质感。** 蓝 / 红 / 青改成上下渐变底、1px 同色细边、顶部高光,文字向主文字色靠拢以提高对比度;悬停时边框变亮并带很淡的光晕。自定义颜色同样加了高光和细边,文字仍按对比度算法取同色系。炫彩胶囊不变。
+- **分区标题更醒目。** 14px 衬线粗体,英文用内嵌的 Playfair Display(Latin 子集约 18 KB,离线可用),中文回退到系统衬线字体;底色是从左到右渐隐的深色块,吸顶时仍然盖住下面的模型行。
+- **设置 → 通用 新增「分区标题艺术效果」开关**(默认开启)。关闭后恢复 DSH 原本的分区标题。配置项 `headings.art`,旧配置缺省按开启处理。
+- 「分组与分区」里每个分区的批量按钮,英文文案由 `Capsule color` 缩短为 `Capsules`,避免被截断;列宽不变。
+- 新增 `OFL-PlayfairDisplay.txt` 和 `NOTICE` 中的字体声明:Playfair Display 采用 SIL OFL 1.1,内嵌子集按许可要求改名为 `MPC Heading`。
+- 接力与胶囊相关的 0.4.7、0.4.8 改动一并收录(这两个版本只打了 tag,没有发布到 npm)。
+
+**English**
+
+- **Fix: a folder relay could carry a reasoning effort the next model does not offer, failing the whole turn.** The host validates the requested effort before sending and ends the turn with `UNSUPPORTED_REASONING_EFFORT`. That check runs before the request-error hook, so a relay cannot recover afterwards. For sessions bound to a folder, every request is now fitted to what the target model declares right now: kept when offered, raised to its highest level when not, and dropped when the model currently declares no reasoning at all (for example a catalog that fell back to a table without effort levels). Sessions not bound to a folder are not covered.
+- **Plain capsules have more depth.** Blue / red / cyan use a vertical gradient fill, a 1px same-hue edge and a top highlight, with text mixed toward the primary label color for contrast; hover brightens the edge with a faint glow. Custom colors get the same highlight and edge while keeping the contrast-safe text color. The holographic capsule is unchanged.
+- **More prominent section headings.** 14px bold serif; Latin text uses an embedded Playfair Display (a ~18 KB Latin subset that works offline), CJK falls back to the system serif. The background is a dark band fading from left to right and still covers the rows underneath while the heading is sticky.
+- **New toggle in Settings → General: "Styled section headings"** (on by default). Off restores the original DSH section heading. Config key `headings.art`; older configs without it count as on.
+- The per-section bulk button in "Groups & partitions" is now `Capsules` in English (was `Capsule color`, which got clipped); column widths are unchanged.
+- Added `OFL-PlayfairDisplay.txt` and a font notice in `NOTICE`: Playfair Display is licensed under SIL OFL 1.1, and the embedded subset is renamed `MPC Heading` as the license requires for modified versions.
+- Includes the 0.4.7 and 0.4.8 changes (relay on network errors and provider refusals, holo capsule text centering). Those two versions were tagged but never published to npm.
 
 ## 0.4.8 — 2026-10-28
 
