@@ -10,6 +10,12 @@ the MIT License:
     markup of the model menu in src/client/seat.js, adapted from the
     @deepseek-ai/dsh-client-ui-model-selection client bundle.
 
+This package also embeds a subset of Playfair Display Bold (src/client/font.js),
+Copyright 2017 The Playfair Display Project Authors
+(https://github.com/clauseggers/Playfair-Display), licensed under the SIL Open
+Font License 1.1 (OFL-PlayfairDisplay.txt). The subset is renamed "MPC Heading"
+as the license requires for modified versions of a font with a Reserved Font Name.
+
 MIT License
 
 Copyright (c) 2026 DeepSeek

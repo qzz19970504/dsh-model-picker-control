@@ -44,8 +44,12 @@ const PICKER_CSS = `
 .mpc-group{position:relative}
 .mpc-group+.mpc-group{margin-top:3px}
 .mpc-groupStart{position:absolute;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none}
-.mpc-groupHeading{position:sticky;top:0;z-index:1;padding:4px 7px 2px;background:transparent;color:var(--dsw-alias-label-tertiary);font-size:11px;line-height:16px;font-weight:500;border-radius:var(--dsw-radius-md)}
-.mpc-groupHeading[data-stuck]{background:var(--dsw-alias-menu-group-header-fill)}
+@font-face{font-family:'MPC Heading';font-style:normal;font-weight:700;font-display:swap;src:url(${HEADING_FONT_DATA}) format('woff2')}
+.mpc-groupHeading{--mpc-hd:rgba(0,0,0,.075);position:sticky;top:0;z-index:1;display:block;margin:5px 2px 1px;padding:3px 12px;background:linear-gradient(90deg,var(--mpc-hd),transparent 94%);color:var(--dsw-alias-label-primary);font-family:'MPC Heading','Songti SC','Noto Serif SC','Source Han Serif SC',SimSun,serif;font-size:14px;line-height:20px;font-weight:700;letter-spacing:.03em;border-radius:var(--dsw-radius-md)}
+body[data-ds-dark-theme] .mpc-groupHeading{--mpc-hd:rgba(0,0,0,.30)}
+.mpc-menu[data-headings=plain] .mpc-groupHeading{display:block;margin:0;padding:4px 7px 2px;background:transparent;color:var(--dsw-alias-label-tertiary);font-family:inherit;font-size:11px;line-height:16px;font-weight:500;letter-spacing:normal}
+.mpc-groupHeading[data-stuck]{background:linear-gradient(90deg,var(--mpc-hd),transparent 94%),var(--dsw-alias-menu-group-header-fill)}
+.mpc-menu[data-headings=plain] .mpc-groupHeading[data-stuck]{background:var(--dsw-alias-menu-group-header-fill)}
 .mpc-inputWrap{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 8px;border:.5px solid var(--dsw-alias-border-l4);border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-layer-1)}
 .mpc-inputWrap:focus-within{border-color:var(--dsw-alias-state-business-primary)}
 .mpc-inputIcon{display:inline-flex;width:16px;height:16px;align-items:center;justify-content:center;color:var(--dsw-alias-label-tertiary)}

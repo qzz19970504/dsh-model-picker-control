@@ -9,7 +9,7 @@ const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
 
 const files = [
   'src/pipeline.js',
-  'src/client/messages.js', 'src/client/styles.js', 'src/client/prims.js', 'src/client/stores.js',
+  'src/client/messages.js', 'src/client/font.js', 'src/client/styles.js', 'src/client/prims.js', 'src/client/stores.js',
   'src/client/label.js', 'src/client/seat.js', 'src/client/preview.js', 'src/client/settings.js', 'src/client/index.js',
 ]
 

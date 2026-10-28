@@ -29,7 +29,7 @@ const SETTINGS_CSS = PREVIEW_CSS + `
 .mpc-set .mpc-section button.mpc-btn{width:100%;padding:0 6px}
 .mpc-set .mpc-kind{color:var(--dsw-alias-label-tertiary);font-size:12px;white-space:nowrap}
 .mpc-set .mpc-bulk{display:block}
-.mpc-set .mpc-bulk>button{width:100%}
+.mpc-set .mpc-bulk>button{width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @container (max-width:600px){.mpc-set .mpc-section{grid-template-columns:22px minmax(100px,1fr) 150px 36px 84px 52px}.mpc-set .mpc-section .mpc-kind{display:none}.mpc-set .mpc-model{grid-template-columns:minmax(80px,1fr) max-content 104px 36px;gap:8px}}
 .mpc-set .mpc-section[data-drop=before]{border-top-color:var(--dsw-alias-state-business-primary)}
 .mpc-set .mpc-section[data-drop=after]{border-bottom-color:var(--dsw-alias-state-business-primary)}
@@ -305,6 +305,8 @@ const release = (key) => familyApi.cooldown(key === undefined ? {} : { key }).th
           h('div', { className: 'mpc-row' }, h(Check, { checked: cfg.enabled, onChange: (v) => edit((c) => ({ ...c, enabled: v })), label: tr('general.enabled') }),
             h('span', { className: 'mpc-hint' }, tr('general.enabledHint'))),
           h('div', { className: 'mpc-row' }, h(Check, { checked: cfg.badges.show1017, onChange: (v) => edit((c) => ({ ...c, badges: { ...c.badges, show1017: v } })), label: tr('general.show1017') })),
+          h('div', { className: 'mpc-row' }, h(Check, { checked: cfg.headings.art, onChange: (v) => edit((c) => ({ ...c, headings: { art: v } })), label: tr('general.artHeadings') }),
+            h('span', { className: 'mpc-hint' }, tr('general.artHeadingsHint'))),
           h('div', { className: 'mpc-row' }, h('label', null, tr('general.defaultSort'),
             h('select', { value: cfg.sort.default, onChange: (e) => edit((c) => ({ ...c, sort: { ...c.sort, default: e.target.value } })) }, sortOptions)))))),
 

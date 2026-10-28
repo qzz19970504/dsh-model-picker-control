@@ -349,3 +349,10 @@ test('catalog cache: round trip, per-session selection, fallback and junk reject
   assert.equal(Object.keys(cache.sessions).length, 40)
   assert.ok(cache.sessions.s59 && !cache.sessions.s0)
 })
+
+test('headings.art defaults on and only an explicit false turns it off', () => {
+  assert.equal(normalizeConfig(undefined).headings.art, true)
+  assert.equal(normalizeConfig({}).headings.art, true)
+  assert.equal(normalizeConfig({ headings: { art: 'no' } }).headings.art, true)
+  assert.equal(normalizeConfig({ headings: { art: false } }).headings.art, false)
+})

@@ -31,6 +31,7 @@ export function defaultConfig() {
     order: {},
     tempHidden: [],
     badges: { show1017: true },
+    headings: { art: true },
   }
 }
 
@@ -213,6 +214,7 @@ export function normalizeConfig(raw) {
     }
   }
   out.badges = { show1017: !(isObj(raw.badges) && raw.badges.show1017 === false) }
+  out.headings = { art: !(isObj(raw.headings) && raw.headings.art === false) }
   return out
 }
 

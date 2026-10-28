@@ -377,7 +377,7 @@ function createSeat(env) {
     effortLabel !== undefined && h('span', { className: 'mpc-triggerEffort' }, effortLabel),
     busy ? h(StateDot) : h(IconChevronDown, { className: cx('mpc-chevron', open && 'mpc-chevronOpen') })),
     open && ReactDOM.createPortal(h(MenuSurface, {
-      ref: menuRef, id: `${id}-menu`, className: 'mpc-menu', style: menuPos ?? MEASURE_STYLE,
+      ref: menuRef, id: `${id}-menu`, className: 'mpc-menu', 'data-headings': cfgState.config.headings.art ? undefined : 'plain', style: menuPos ?? MEASURE_STYLE,
       role: pane === 'model' ? 'group' : 'menu', 'aria-label': t('menu.aria'), 'aria-busy': state.status === 'loading' || busy,
     }, pane === 'root' && rootPane, pane === 'model' && modelPane, pane === 'effort' && effortPane), document.body),
     toast !== null && h(Toast, {
