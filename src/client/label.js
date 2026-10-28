@@ -21,9 +21,10 @@ function Cap({ cap }) {
   if (cap.tone === 'custom') {
     // Free color: solid fill, text in the same hue pushed to >= 4.5:1 contrast (capTextColor), hairline edge for white-on-light.
     const bg = cap.color ?? DEFAULT_CAP_COLOR
-    style.background = bg
+    style.backgroundColor = bg
+    style.backgroundImage = 'linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,0) 62%)'
     style.color = capTextColor(bg)
-    style.boxShadow = 'inset 0 0 0 .5px color-mix(in srgb, ' + style.color + ' 35%, transparent)'
+    style.boxShadow = 'inset 0 0 0 1px color-mix(in srgb, ' + style.color + ' 30%, transparent), inset 0 1px 0 rgba(255,255,255,.3)'
   }
   return h(Tag, { tone: cap.tone, style, 'aria-hidden': empty ? true : undefined }, cap.text)
 }
