@@ -26,7 +26,7 @@ DSH **不加载本目录**。它加载的是 profile 里安装的副本:
 
 所以只改 `src/` 和 `lib/` 再重启 = 白改。完整流程:
 
-1. 改 `package.json` 的 `version`(不能复用同一个 tgz 名,否则 pnpm 走缓存不更新)
+1. 改 `package.json` 的 `version`(不能复用同一个 tgz 名,否则 pnpm 走缓存不更新)。**验证阶段用 `X.Y.Z-dev.N`**,别把正式版本号一路上推,规则见文末「发布」
 2. `npm pack`
 3. 改 profile 的 `package.json` 指向新 tgz(改前先备份 `package.json` 与 `pnpm-lock.yaml`)
 4. `cd ~/.dsh/profiles/desktop && pnpm install`
@@ -51,4 +51,49 @@ DSH **不加载本目录**。它加载的是 profile 里安装的副本:
 
 ## 发布
 
-版本号 → README 中英双语同步(功能描述别只改一边)→ 需要时更新 `docs/` 截图 → `git tag -a vX.Y.Z`。tag 只打本地还是 push 由用户决定,别自作主张 push。
+**三个动作各管一件事,别混在一起:**
+
+| 动作 | 什么时候做 | 规矩 |
+| --- | --- | --- |
+| `git commit` | 随时,每个小改动一个 | 版本号改动拆进独立的 `release:` commit,别混进功能 commit |
+| `git tag` | 只在 `npm publish` 成功的同一时刻 | 一个 tag = 一个 npm 版本,两边数量永远相等 |
+| `npm publish` | 攒一批用户能感知的改动之后 | 见下面「什么时候发一个版本」 |
+
+### 开发中(不发布):用预发布号
+
+本地安装必须换 tgz 名(pnpm 靠文件名认缓存),但**别为每次验证 bump 正式版本号**:
+
+```bash
+npm version 0.4.9-dev.1 --no-git-tag-version   # 或手改 package.json
+npm pack                                       # dsh-model-picker-control-0.4.9-dev.1.tgz
+# 改 profile package.json 指向新 tgz → pnpm install → 重启 DSH 看效果
+```
+
+验证阶段**不打 tag、不发 npm**。再改一轮就 `dev.2`、`dev.3`。dev 版本永远不进 npm,也不单独打 tag;正式发版时把它们收进 `X.Y.Z`。
+
+### 什么时候发一个版本
+
+满足任一条就发,不是改一个像素发一次:
+
+- 攒够一个「用户能感知的改动包」(几个小 fix,或一个完整功能)
+- 修了会让用户踩坑的 bug(比如接力不触发、设置丢失),当天发
+
+反例:0.4.3 → 0.4.8 半天六个版本号,其中三个打了 tag、两个发了 npm,用户视角毫无区别,自己事后也分不清。
+
+### 发布清单(一次做完,顺序别换)
+
+1. 版本号去掉 `-dev.N`,定为 `X.Y.Z`
+2. 更新 `CHANGELOG.md`(还没有就先创建,从 0.4.0 起补)与 README 中英双语(描述别只改一边),需要时更新 `docs/` 截图
+3. `npm test` 全绿 + `node --check lib/client.js` + 装进 DSH 真机看一眼 UI
+4. `npm publish --otp=<6 位>`(账号有 2FA),`npm view dsh-model-picker-control version` 确认
+5. `git tag -a vX.Y.Z -m "..."` + `git push origin main --tags`
+
+**tag 只能出现在第 4 步成功之后。没发布过就不打 tag,发布过就一定有 tag。** 之前的混乱正是:一会儿给验证版打了 tag(0.4.5 / 0.4.7 / 0.4.8),一会儿没打(0.3.0–0.3.2、0.4.0、0.4.1、0.4.3、0.4.4、0.4.6)。
+
+### 版本号语义
+
+- 新交互 / 新功能 → minor(`0.4` → `0.5`)
+- 修 bug / 调样式 → patch(`0.4.8` → `0.4.9`)
+- 预发布验证 → `-dev.N`,发布时去掉
+
+npm 上的版本**不可覆盖**:发错了只能 `npm deprecate` 旧版再发新 patch。push / 打 tag 与否由用户决定,别自作主张 push。
