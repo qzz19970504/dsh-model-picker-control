@@ -1,6 +1,6 @@
 {
   "name": "dsh-model-picker-control",
-  "version": "0.4.7",
+  "version": "0.4.8",
   "description": "Model picker control for DSH: rename, regroup, sort, hide and badge models across providers, with cross-provider partitions, plus suffix capsules.",
   "type": "module",
   "publishConfig": {
