@@ -620,6 +620,40 @@ export function moveFamilyMemberTo(rawConfig, id, key, targetKey, after = false)
 /** Failure codes that make a member "unusable" (INVALID_REQUEST / context overflow are NOT here: another member would fail too). */
 export const FAILOVER_CODES = ['QUOTA', 'ACCOUNT_QUOTA', 'RATE_LIMIT', 'AUTH']
 
+export const NETWORK_CODES = ['TRANSPORT', 'SERVER', 'TIMEOUT']
+export const NETWORK_COOLDOWN_MS = 10 * 60_000
+export const REJECTED_COOLDOWN_MS = 60 * 60_000
+const REJECTED_STATUSES = [400, 403, 404]
+
+/** HTTP status of a failure: the explicit field, else a leading "400:" / "HTTP 400" in the message. */
+function failureStatus(failure) {
+  if (typeof failure?.status === 'number') return failure.status
+  const m = /^\s*(\d{3})\s*:|HTTP\s*(\d{3})/i.exec(String(failure?.message ?? ''))
+  return m ? Number(m[1] ?? m[2]) : undefined
+}
+
+/**
+ * How a failed request should park its member, or undefined when another member would fail the same way.
+ *  - 'quota'    QUOTA / ACCOUNT_QUOTA / RATE_LIMIT / AUTH: back at the next local midnight.
+ *  - 'network'  TRANSPORT / SERVER / TIMEOUT (the host's own retries are spent by the time we see them): 10 minutes.
+ *  - 'rejected' the provider refused this request with 400/403/404 (plan, channel, model not allowed): 1 hour.
+ * CONTEXT_WINDOW_EXCEEDED and other codes never relay.
+ */
+export function classifyFailure(failure) {
+  const code = failure?.code
+  if (FAILOVER_CODES.includes(code)) return 'quota'
+  if (NETWORK_CODES.includes(code)) return 'network'
+  if ((code === 'PROVIDER_HTTP_ERROR' || code === 'INVALID_REQUEST') && REJECTED_STATUSES.includes(failureStatus(failure))) return 'rejected'
+  return undefined
+}
+
+/** Epoch ms until which a member stays parked after a failure of the given kind. */
+export function cooldownUntil(kind, now) {
+  if (kind === 'network') return now + NETWORK_COOLDOWN_MS
+  if (kind === 'rejected') return now + REJECTED_COOLDOWN_MS
+  return nextLocalMidnight(now)
+}
+
 /** Epoch ms of the next local midnight after `now` (members come back the next day). */
 export function nextLocalMidnight(now) {
   const d = new Date(now)

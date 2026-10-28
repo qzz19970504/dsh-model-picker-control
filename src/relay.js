@@ -1,6 +1,6 @@
 // Ordered failover for folders ("families"). Pure of host imports: every host service is injected, so
 // the whole relay can be driven by a fake in node:test. lib/index.js wires it to the real cordis events.
-import { normalizeConfig, modelKey, pickFamilyMember, liveCooldowns, nextLocalMidnight, FAILOVER_CODES, highestEffort, relayMembers } from './pipeline.js'
+import { normalizeConfig, modelKey, pickFamilyMember, liveCooldowns, classifyFailure, cooldownUntil, highestEffort, relayMembers } from './pipeline.js'
 
 const MAX_BINDINGS = 200
 const RETRY_WINDOW_MS = 60_000 // a retry we asked for must reach the next request within this window to count as a hop
@@ -62,13 +62,22 @@ export function createRelay(deps) {
     }
   }
 
+  // If no member could serve, the request itself was probably bad: give back the members parked for non-quota reasons.
+  const release = (keys) => {
+    if (keys.length === 0) return
+    for (const k of keys) delete cooldowns[k]
+    persist()
+  }
+
   /** `agent/request` listener (outermost). `next()` yields the config the rest of the chain produced. */
   async function onRequest(payload, next) {
     const resolved = await next()
     const agent = payload.agent
     const pending = retrying.get(agent)
     retrying.delete(agent)
-    const hops = pending !== undefined && now() - pending.at < RETRY_WINDOW_MS ? pending.hops : 0
+    const fresh = pending !== undefined && now() - pending.at < RETRY_WINDOW_MS
+    const hops = fresh ? pending.hops : 0
+    const chain = fresh ? pending.chain ?? [] : []
     if (!config().enabled) return resolved
     const familyId = bindings.get(agent.id)
     if (familyId === undefined) return resolved
@@ -81,13 +90,13 @@ export function createRelay(deps) {
     }
     prune()
     const target = pick(family)
-    if (target === undefined) { inflight.set(agent, { provider: resolved.provider, key: current, hops }); return resolved }
+    if (target === undefined) { inflight.set(agent, { provider: resolved.provider, key: current, hops, chain }); return resolved }
     const key = keyOf(target)
-    if (key === current) { inflight.set(agent, { provider: resolved.provider, key, hops }); return resolved }
+    if (key === current) { inflight.set(agent, { provider: resolved.provider, key, hops, chain }); return resolved }
     const effort = await topEffort(target)
     // If the host refuses the switch, keep the request where the UI says it is instead of silently re-routing it.
-    if (!(await select(agent, target, effort))) { inflight.set(agent, { provider: resolved.provider, key: current, hops }); return resolved }
-    inflight.set(agent, { provider: target.provider, key, hops })
+    if (!(await select(agent, target, effort))) { inflight.set(agent, { provider: resolved.provider, key: current, hops, chain }); return resolved }
+    inflight.set(agent, { provider: target.provider, key, hops, chain })
     const { reasoningEffort: _effort, ...rest } = resolved
     return { ...rest, provider: target.provider, model: target.model, ...(effort === undefined ? {} : { reasoningEffort: effort }) }
   }
@@ -99,19 +108,23 @@ export function createRelay(deps) {
     const route = inflight.get(agent)
     const familyId = bindings.get(agent.id)
     const family = familyId === undefined ? undefined : familyOf(familyId)
-    if (family === undefined || route === undefined || !FAILOVER_CODES.includes(failure?.code)) return next()
+    const kind = classifyFailure(failure)
+    if (family === undefined || route === undefined || kind === undefined) return next()
     // The error must belong to the request we routed: a late error from another provider must not park the wrong member.
     if (payload.provider !== undefined && payload.provider !== route.provider) return next()
     if (!family.members.some((m) => keyOf(m) === route.key)) return next()
-    if (route.hops >= family.members.length) return next() // every member had its turn for this request
-    cooldowns[route.key] = nextLocalMidnight(now())
+    const chain = route.chain ?? []
+    if (route.hops >= family.members.length) { release(chain); return next() } // every member had its turn for this request
+    cooldowns[route.key] = cooldownUntil(kind, now())
+    // Only quota-type parking is trusted for the whole day; a network or refusal parking is undone when no member could serve.
+    const nextChain = kind === 'quota' ? chain : [...chain, route.key]
     prune()
     persist()
     const target = pick(family)
-    if (target === undefined) return next()
+    if (target === undefined) { release(nextChain); return next() }
     log.info?.(`dsh-model-picker-control: family "${family.name}": ${route.key} unusable (${failure.code}), continuing on ${keyOf(target)}`)
-    if (!(await select(agent, target, await topEffort(target)))) return next()
-    retrying.set(agent, { hops: route.hops + 1, at: now() })
+    if (!(await select(agent, target, await topEffort(target)))) { release(nextChain); return next() }
+    retrying.set(agent, { hops: route.hops + 1, at: now(), chain: nextChain })
     return { kind: 'retry' }
   }
 

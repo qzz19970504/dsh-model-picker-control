@@ -136,3 +136,61 @@ test('a corrupt or failing store never breaks a request', async () => {
   await h.request('a', 'x')
   assert.deepEqual(await h.fail('a'), { kind: 'retry' })
 })
+
+const failWith = (h, provider, failure) => h.relay.onError({ agent: h.agent, provider, failure }, async () => undefined)
+
+test('network errors relay and park the member for ten minutes only', async () => {
+  const h = harness()
+  h.relay.bind('s1', 'f1')
+  await h.request('a', 'x')
+  assert.deepEqual(await failWith(h, 'a', { code: 'TRANSPORT', message: 'read ECONNRESET' }), { kind: 'retry' })
+  assert.equal(h.relay.state('s1').cooldowns['a/x'], T0 + 10 * 60_000)
+  h.clock.t = T0 + 11 * 60_000
+  assert.equal((await h.request('a', 'x')).provider, 'a') // top member is back in line
+})
+
+test('a provider refusal (400/403/404, status field or message) relays for one hour', async () => {
+  for (const failure of [
+    { code: 'PROVIDER_HTTP_ERROR', status: 400, message: 'BAD_REQUEST' },
+    { code: 'INVALID_REQUEST', message: '400: {"message":"unapproved channel"}' },
+    { code: 'AUTH', status: 403 },
+  ]) {
+    const h = harness()
+    h.relay.bind('s1', 'f1')
+    await h.request('a', 'x')
+    assert.deepEqual(await failWith(h, 'a', failure), { kind: 'retry' })
+  }
+  const h = harness()
+  h.relay.bind('s1', 'f1')
+  await h.request('a', 'x')
+  await failWith(h, 'a', { code: 'PROVIDER_HTTP_ERROR', status: 400 })
+  assert.equal(h.relay.state('s1').cooldowns['a/x'], T0 + 60 * 60_000)
+})
+
+test('context overflow, other statuses and unknown codes never relay', async () => {
+  for (const failure of [
+    { code: 'CONTEXT_WINDOW_EXCEEDED', status: 400 },
+    { code: 'INVALID_REQUEST', status: 422 },
+    { code: 'PROVIDER_HTTP_ERROR', status: 500 },
+    { code: 'UNKNOWN' },
+  ]) {
+    const h = harness()
+    h.relay.bind('s1', 'f1')
+    await h.request('a', 'x')
+    assert.equal(await failWith(h, 'a', failure), undefined, failure.code)
+    assert.deepEqual(h.relay.state('s1').cooldowns, {})
+  }
+})
+
+test('when every member refuses the same request, the non-quota parking is undone', async () => {
+  const h = harness()
+  h.relay.bind('s1', 'f1')
+  const bad = { code: 'PROVIDER_HTTP_ERROR', status: 400 }
+  await h.request('a', 'x')
+  assert.deepEqual(await failWith(h, 'a', bad), { kind: 'retry' })
+  await h.request('a', 'x')
+  assert.deepEqual(await failWith(h, 'b', bad), { kind: 'retry' })
+  await h.request('a', 'x')
+  assert.equal(await failWith(h, 'c', bad), undefined)
+  assert.deepEqual(h.relay.state('s1').cooldowns, {}) // a bad request must not lock the whole folder for an hour
+})
