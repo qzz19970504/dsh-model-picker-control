@@ -19,7 +19,7 @@ function config(extra = {}) {
   }
 }
 
-function harness({ cfg = config(), selectFails = false, store, clock = { t: T0 } } = {}) {
+function harness({ cfg = config(), selectFails = false, store, clock = { t: T0 }, info = async () => ({ reasoning: { efforts: [{ id: 'low' }, { id: 'high' }] } }), effort = 'low' } = {}) {
   const selects = []
   const relay = createRelay({
     getConfig: () => cfg,
@@ -29,10 +29,10 @@ function harness({ cfg = config(), selectFails = false, store, clock = { t: T0 }
       selects.push({ sessionId, key: `${member.provider}/${member.model}`, effort })
       if (selectFails) throw new Error('refused')
     },
-    resolveModelInfo: async () => ({ reasoning: { efforts: [{ id: 'low' }, { id: 'high' }] } }),
+    resolveModelInfo: (provider, model) => info(provider, model),
   })
   const agent = { id: 's1' }
-  const request = async (provider, model) => relay.onRequest({ agent }, async () => ({ provider, model, reasoningEffort: 'low' }))
+  const request = async (provider, model) => relay.onRequest({ agent }, async () => ({ provider, model, reasoningEffort: effort }))
   const fail = (provider, code = 'QUOTA') => relay.onError({ agent, provider, failure: { code } }, async () => undefined)
   return { relay, selects, agent, request, fail, cfg, clock }
 }
@@ -193,4 +193,39 @@ test('when every member refuses the same request, the non-quota parking is undon
   await h.request('a', 'x')
   assert.equal(await failWith(h, 'c', bad), undefined)
   assert.deepEqual(h.relay.state('s1').cooldowns, {}) // a bad request must not lock the whole folder for an hour
+})
+
+test('an effort the model does not declare is fitted before the host rejects it', async () => {
+  // 'max' is not offered by a/x any more (its catalog changed): the host would fail with UNSUPPORTED_REASONING_EFFORT.
+  const h = harness({ effort: 'max' })
+  h.relay.bind('s1', 'f1')
+  assert.equal((await h.request('a', 'x')).reasoningEffort, 'high')
+})
+
+test('a model that declares no reasoning loses the effort instead of failing the request', async () => {
+  const h = harness({ effort: 'max', info: async () => ({}) })
+  h.relay.bind('s1', 'f1')
+  const config = await h.request('a', 'x')
+  assert.equal('reasoningEffort' in config, false)
+})
+
+test('an offered effort is kept, and a failed model lookup never blocks a request', async () => {
+  const h = harness({ effort: 'low' })
+  h.relay.bind('s1', 'f1')
+  assert.equal((await h.request('a', 'x')).reasoningEffort, 'low')
+  const broken = harness({ effort: 'max', info: async () => { throw new Error('catalog down') } })
+  broken.relay.bind('s1', 'f1')
+  assert.equal((await broken.request('a', 'x')).reasoningEffort, 'max')
+})
+
+test('a failover lands on the highest level of the next member, fitted to what it declares', async () => {
+  const levels = { a: ['low', 'high'], b: ['minimal', 'low', 'medium', 'xhigh'] }
+  const h = harness({ effort: 'high', info: async (provider) => ({ reasoning: { efforts: levels[provider].map((id) => ({ id })) } }) })
+  h.relay.bind('s1', 'f1')
+  await h.request('a', 'x')
+  assert.deepEqual(await h.fail('a'), { kind: 'retry' })
+  const next = await h.request('a', 'x') // the host still proposes the old route; the relay moves it
+  assert.equal(`${next.provider}/${next.model}`, 'b/x')
+  assert.equal(next.reasoningEffort, 'xhigh')
+  assert.equal(h.selects.at(-1).effort, 'xhigh')
 })

@@ -51,6 +51,22 @@ export function createRelay(deps) {
   const topEffort = async (member) => {
     try { return highestEffort((await deps.resolveModelInfo?.(member.provider, member.model))?.reasoning) } catch { return undefined }
   }
+  // The host rejects a request whose effort the model does not declare (UNSUPPORTED_REASONING_EFFORT) before it is sent, so
+  // no request-error listener can recover from it. Fit the effort to what the model declares right now: kept when offered,
+  // the highest level when not, dropped when the model currently declares no reasoning at all (e.g. a catalog that fell
+  // back to a table without effort levels).
+  const fitEffort = async (config) => {
+    if (config.reasoningEffort === undefined) return config
+    let info
+    try { info = await deps.resolveModelInfo?.(config.provider, config.model) } catch { return config }
+    if (info === undefined || info === null) return config
+    const { reasoningEffort: effort, ...rest } = config
+    const efforts = info.reasoning?.efforts
+    if (!Array.isArray(efforts) || efforts.length === 0) return rest
+    if (efforts.some((e) => e.id === effort)) return config
+    return { ...rest, reasoningEffort: highestEffort(info.reasoning) }
+  }
+
   /** Re-select like a manual switch. Resolves true only when the host accepted it. */
   const select = async (agent, member, effort) => {
     try {
@@ -90,15 +106,15 @@ export function createRelay(deps) {
     }
     prune()
     const target = pick(family)
-    if (target === undefined) { inflight.set(agent, { provider: resolved.provider, key: current, hops, chain }); return resolved }
+    if (target === undefined) { inflight.set(agent, { provider: resolved.provider, key: current, hops, chain }); return fitEffort(resolved) }
     const key = keyOf(target)
-    if (key === current) { inflight.set(agent, { provider: resolved.provider, key, hops, chain }); return resolved }
+    if (key === current) { inflight.set(agent, { provider: resolved.provider, key, hops, chain }); return fitEffort(resolved) }
     const effort = await topEffort(target)
     // If the host refuses the switch, keep the request where the UI says it is instead of silently re-routing it.
-    if (!(await select(agent, target, effort))) { inflight.set(agent, { provider: resolved.provider, key: current, hops, chain }); return resolved }
+    if (!(await select(agent, target, effort))) { inflight.set(agent, { provider: resolved.provider, key: current, hops, chain }); return fitEffort(resolved) }
     inflight.set(agent, { provider: target.provider, key, hops, chain })
     const { reasoningEffort: _effort, ...rest } = resolved
-    return { ...rest, provider: target.provider, model: target.model, ...(effort === undefined ? {} : { reasoningEffort: effort }) }
+    return fitEffort({ ...rest, provider: target.provider, model: target.model, ...(effort === undefined ? {} : { reasoningEffort: effort }) })
   }
 
   /** `agent/request-error` listener. Returns `{kind:'retry'}` after moving to the next member, otherwise defers. */
