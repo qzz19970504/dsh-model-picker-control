@@ -739,3 +739,41 @@ export function setModelsHidden(config, keys, hidden) {
   for (const key of keys) next = setModelOverride(next, key, { hidden: hidden === true })
   return next
 }
+
+// ---- model catalog cache ---------------------------------------------------------------------------
+// After a full restart the host rebuilds its model catalog from scratch (every provider adapter lists its models over
+// the network), and the picker sits on "loading" until the slowest one answers. The last good catalog and each
+// session's last selection are kept (by the client, in localStorage) and shown while the real one loads.
+export const CATALOG_CACHE_VERSION = 1
+const MAX_CACHED_SESSIONS = 40
+
+const isSelection = (v) => isObj(v) && typeof v.provider === 'string' && typeof v.model === 'string'
+const pickSelection = (v) => ({ provider: v.provider, model: v.model, ...(typeof v.reasoningEffort === 'string' ? { reasoningEffort: v.reasoningEffort } : {}) })
+
+/** Fold a freshly loaded catalog (and the session's selection) into the cache value. Pure; returns a new object. */
+export function packCatalogCache(prev, { groups, current, sessionId, now }) {
+  const sessions = isObj(prev?.sessions) ? { ...prev.sessions } : {}
+  const selection = isSelection(current) ? pickSelection(current) : undefined
+  if (selection !== undefined && typeof sessionId === 'string' && sessionId !== '') {
+    delete sessions[sessionId] // re-insert: insertion order is recency
+    sessions[sessionId] = selection
+    for (const key of Object.keys(sessions).slice(0, Math.max(0, Object.keys(sessions).length - MAX_CACHED_SESSIONS))) delete sessions[key]
+  }
+  return { v: CATALOG_CACHE_VERSION, at: now, groups, last: selection ?? (isSelection(prev?.last) ? prev.last : undefined), sessions }
+}
+
+/** Validate whatever came out of storage; anything malformed is treated as "no cache". */
+export function readCatalogCache(raw) {
+  if (!isObj(raw) || raw.v !== CATALOG_CACHE_VERSION || !Array.isArray(raw.groups) || raw.groups.length === 0) return undefined
+  const groups = raw.groups.filter((g) => isObj(g) && typeof g.id === 'string' && typeof g.name === 'string' && Array.isArray(g.models)
+    && g.models.every((m) => isObj(m) && typeof m.id === 'string'))
+  if (groups.length === 0) return undefined
+  return { v: raw.v, at: typeof raw.at === 'number' ? raw.at : 0, groups, last: isSelection(raw.last) ? pickSelection(raw.last) : undefined, sessions: isObj(raw.sessions) ? raw.sessions : {} }
+}
+
+/** The selection to show for a session before the real catalog arrives: its own, else the last one seen. */
+export function cachedSelection(cache, sessionId) {
+  const own = cache?.sessions?.[sessionId]
+  if (isSelection(own)) return pickSelection(own)
+  return isSelection(cache?.last) ? pickSelection(cache.last) : null
+}

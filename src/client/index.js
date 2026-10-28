@@ -73,11 +73,26 @@ function takeOverModelPopup(ctx, env) {
     }
   }
   patch()
-  // The host registers its /model contribution from its own inject callback, which can run after ours,
-  // and a re-registration produces a fresh object: re-check cheaply until disposed.
-  const timer = setInterval(patch, 1000)
+  // The host registers its /model contribution from its own inject callback, which can run after ours, and a
+  // re-registration produces a fresh object. Watch the registry itself: wrap `set` so every (re)registration is
+  // patched the moment it happens. If the registry is not a plain Map we can wrap, fall back to a slow re-check.
+  const registry = commandUi?.live?.contributions
+  let restoreSet
+  let timer
+  if (registry instanceof Map && Object.hasOwn(registry, 'set') === false) {
+    const originalSet = registry.set
+    registry.set = function set(key, value) {
+      const result = originalSet.call(this, key, value)
+      if (key === 'model') queueMicrotask(patch)
+      return result
+    }
+    restoreSet = () => { delete registry.set }
+  } else {
+    timer = setInterval(patch, 2000)
+  }
   return () => {
-    clearInterval(timer)
+    restoreSet?.()
+    if (timer !== undefined) clearInterval(timer)
     for (const [ui, original] of patched) ui.options = original
     patched.clear()
   }

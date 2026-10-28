@@ -2,8 +2,6 @@
 // External-store shape (subscribe/getSnapshot) so React reads them with useSyncExternalStore.
 
 const API = 'model-picker-control/api/'
-const PROVIDER_REGIONS = new Map([['workbuddy', 'cn'], ['workbuddy-global', 'global']])
-const regionOfProvider = (id) => PROVIDER_REGIONS.get(id)
 
 function routeUrl(path) {
   return new URL(path.replace(/^\/+/, ''), document.baseURI).href
@@ -99,3 +97,23 @@ const familyApi = {
   bind: (sessionId, familyId) => call('family.bind', { sessionId, familyId: familyId ?? 'none' }),
   cooldown: (payload) => call('family.cooldown', payload ?? {}),
 }
+
+// Last good model catalog + per-session selection, kept in localStorage so a cold start can paint at once
+// (the host rebuilds its catalog over the network, which can take many seconds). Display only: never trusted for routing.
+const CATALOG_CACHE_KEY = 'dsh-model-picker-control/catalog'
+const catalogCache = (() => {
+  let memo // undefined = not read yet, null = no usable cache
+  const read = () => {
+    if (memo === undefined) {
+      try { memo = readCatalogCache(JSON.parse(localStorage.getItem(CATALOG_CACHE_KEY) ?? 'null')) ?? null } catch { memo = null }
+    }
+    return memo
+  }
+  const write = (info) => {
+    try {
+      memo = readCatalogCache(packCatalogCache(read(), { ...info, now: Date.now() })) ?? memo
+      localStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify(memo))
+    } catch { /* private mode or quota: the cache is only an accelerator */ }
+  }
+  return { read, write }
+})()

@@ -7,6 +7,7 @@ import {
   mergeIntoFamily, setFamily, dissolveFamily, ungroupMember, moveFamilyMember, moveFamilyMemberTo,
   familyTarget, pickFamilyMember, nextLocalMidnight, liveCooldowns, FAILOVER_CODES,
   highestEffort, familyReasoning, mapEffort, relayMembers, setModelsHidden, setSectionCaps, countEmptyCaps, clearEmptyCaps,
+  packCatalogCache, readCatalogCache, cachedSelection,
 } from '../src/pipeline.js'
 
 const groups = [
@@ -326,4 +327,25 @@ test('setModelsHidden hides and restores a whole provider at once', () => {
   cfg = setModelsHidden(cfg, ['a/m1', 'a/m2'], false)
   assert.equal(cfg.models['a/m1'].hidden, undefined)
   assert.equal(cfg.models['a/m2'], undefined) // empty override dropped
+})
+
+test('catalog cache: round trip, per-session selection, fallback and junk rejection', () => {
+  const groups = [{ id: 'a', name: 'A', models: [{ id: 'x', name: 'X' }] }]
+  const first = packCatalogCache(undefined, { groups, current: { provider: 'a', model: 'x', reasoningEffort: 'high' }, sessionId: 's1', now: 1 })
+  const read = readCatalogCache(JSON.parse(JSON.stringify(first)))
+  assert.deepEqual(read.groups, groups)
+  assert.deepEqual(cachedSelection(read, 's1'), { provider: 'a', model: 'x', reasoningEffort: 'high' })
+  assert.deepEqual(cachedSelection(read, 'other'), { provider: 'a', model: 'x', reasoningEffort: 'high' }) // falls back to the last one seen
+  const second = packCatalogCache(first, { groups, current: { provider: 'a', model: 'y' }, sessionId: 's2', now: 2 })
+  assert.equal(cachedSelection(second, 's1').model, 'x')
+  assert.equal(cachedSelection(second, 's2').model, 'y')
+  assert.equal(cachedSelection(undefined, 's1'), null)
+  assert.equal(readCatalogCache({ v: 99, groups }), undefined)
+  assert.equal(readCatalogCache({ v: 1, groups: [{ id: 1 }] }), undefined)
+  assert.equal(readCatalogCache('garbage'), undefined)
+  // the cache keeps only the most recent sessions
+  let cache
+  for (let i = 0; i < 60; i += 1) cache = packCatalogCache(cache, { groups, current: { provider: 'a', model: 'x' }, sessionId: `s${i}`, now: i })
+  assert.equal(Object.keys(cache.sessions).length, 40)
+  assert.ok(cache.sessions.s59 && !cache.sessions.s0)
 })

@@ -29,8 +29,17 @@ function createSeat(env) {
   })
 
   return function ModelSeat({ locked, available, sessionId, directory, load, select }) {
-    const state = React.useSyncExternalStore((fn) => directory.subscribe(fn), () => directory.getSnapshot())
+    const live = React.useSyncExternalStore((fn) => directory.subscribe(fn), () => directory.getSnapshot())
+    // Until the host has rebuilt its catalog, paint the last good one (and this session's last model) instead of "loading".
+    const cached = live.groups.length === 0 && live.status === 'loading' ? catalogCache.read() : null
+    const state = React.useMemo(() => {
+      if (cached === null) return live
+      return { ...live, groups: cached.groups, current: live.current ?? cachedSelection(cached, sessionId) }
+    }, [live, cached, sessionId])
     const language = useLanguage()
+    React.useEffect(() => {
+      if (live.status === 'ready' && live.groups.length > 0) catalogCache.write({ groups: live.groups, current: live.current, sessionId })
+    }, [live.status, live.groups, live.current?.provider, live.current?.model, live.current?.reasoningEffort, sessionId])
     const cfgState = useStore(configStore)
     const t = tHost
     const [open, setOpen] = React.useState(false)
@@ -75,12 +84,8 @@ function createSeat(env) {
     const hasFamilies = cfgState.config.families.length > 0
     const built = React.useMemo(() => {
       const providerLabel = (g) => (g.id === 'deepseek-account' ? accountName : g.name)
-      const first = buildSections(state.groups, cfgState.config, { providerLabel, exhausted, current: hasFamilies ? currentKey : undefined })
-      // The family entry the session follows (only while the model in use really is one of its members).
-      const bound = fam.familyId === undefined || currentKey === undefined ? undefined
-        : first.entries.find((e) => e.family && e.familyId === fam.familyId && e.members.some((m) => m.key === currentKey))
-      return bound === undefined ? first : { ...first, bound }
-    }, [state.groups, cfgState.config, accountName, exhausted, hasFamilies ? currentKey : undefined, fam.familyId])
+      return buildSections(state.groups, cfgState.config, { providerLabel, exhausted, current: hasFamilies ? currentKey : undefined })
+    }, [state.groups, cfgState.config, accountName, exhausted, hasFamilies ? currentKey : undefined])
     const choices = built.entries
     const showSearch = choices.length > 4
     const filteredSections = React.useMemo(() => built.sections

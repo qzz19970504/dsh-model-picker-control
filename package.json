@@ -1,6 +1,6 @@
 {
   "name": "dsh-model-picker-control",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "Model picker control for DSH: rename, regroup, sort, hide and badge models across providers, with cross-provider partitions, plus suffix capsules.",
   "type": "module",
   "publishConfig": {
@@ -24,7 +24,7 @@
   },
   "scripts": {
     "build": "node scripts/build.mjs",
-    "test": "node --test test/pipeline.test.mjs",
+    "test": "node --test test/pipeline.test.mjs test/relay.test.mjs",
     "prepack": "node scripts/build.mjs"
   },
   "dsh": {
@@ -46,10 +46,12 @@
     "lib/index.js",
     "lib/client.js",
     "src/pipeline.js",
+    "src/relay.js",
     "cordis.patch.yml",
     "README.md",
     "README_ZH.md",
     "LICENSE",
+    "NOTICE",
     "icon.svg",
     "locale/*.json"
   ],

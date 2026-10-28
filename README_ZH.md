@@ -187,7 +187,8 @@ dsh plugin add ./dsh-model-picker-control-<版本号>.tgz
 - 模型目录本身不做任何修改。插件读取 `ctx.modelDirectories.directoryFor(sessionId)`，把目录和你的配置组合成分组列表再渲染；选择模型依旧走 `directory.select()`。
 - 隐藏只影响显示。已保存的选择即使变得不可见也不会被改动 —— 触发按钮回落到「请选择模型」，你可以重新选一个。
 - 写入由宿主 settings 服务做版本校验，失败回滚，并且只碰本插件那一行 —— 不会重写整个 `cordis.patch.yml`。
-- 文件夹接力在插件的宿主半运行。它监听 `agent/request-error`：遇到 `QUOTA`、`ACCOUNT_QUOTA`、`RATE_LIMIT`、`AUTH` 时，把出错的成员停用到当天零点，用宿主自己的 `selectModel` 切换会话（因此会照常加入「模型已切换」提示），再返回 `{kind: "retry"}` 让请求重发。冷却状态只存在内存里，重启 DSH 或在成员上点「立即恢复」按钮即清除。
+- 文件夹接力在插件的宿主半运行。它监听 `agent/request-error`：遇到 `QUOTA`、`ACCOUNT_QUOTA`、`RATE_LIMIT`、`AUTH` 时，把出错的成员停用到当天零点，用宿主自己的 `selectModel` 切换会话（因此会照常加入「模型已切换」提示），再返回 `{kind: "retry"}` 让请求重发。同一次请求对每个成员最多重试一次。文件夹绑定和已停用的成员存放在 `<DSH_HOME>/state/dsh-model-picker-control.json`（不放进 `picker` 配置，因为写配置会让宿主重新加载模型目录），所以重启 DSH 后仍然有效；到当天零点或点成员上的「立即恢复」按钮即清除。关闭插件后，接力不再起作用。
+- 选择器会把上一次成功的模型列表和每个会话最后用的模型存在浏览器的 `localStorage`（`dsh-model-picker-control/catalog`）。完全重启后，宿主要重建模型目录，每个 provider 适配器都要联网列出模型，可能要等很多秒；这时选择器先显示缓存内容。缓存只用于显示，真实列表一到就替换。
 - 设置页跟随 GUI 语言提供中文与英文。
 
 ## 常见问题

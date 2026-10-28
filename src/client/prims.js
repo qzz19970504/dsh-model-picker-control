@@ -1,6 +1,6 @@
 // Own copies of the host primitives the stock picker uses (menu surface/group, input, spinner,
-// toast, fuzzy ranking, sticky group headings). Ported verbatim from the host bundle so the
-// picker feels identical, WITHOUT requiring any @deepseek-ai client package at runtime.
+// toast, fuzzy ranking, sticky group headings). Adapted from the DeepSeek Harness client bundle (MIT, see NOTICE) so
+// the picker feels identical, WITHOUT requiring any @deepseek-ai client package at runtime.
 // `React`, `ReactDOM` and `h` (= React.createElement) are provided by the build header.
 
 // ---- fuzzy ranking (rankByName) -------------------------------------------------------------
