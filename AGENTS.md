@@ -21,7 +21,7 @@ DSH **不加载本目录**。它加载的是 profile 里安装的副本:
 
 - profile 根目录:`~/.dsh/profiles/desktop`
 - 依赖写死在 `~/.dsh/profiles/desktop/package.json`,指向本目录产出的 **tgz**,例如
-  `"dsh-model-picker-control": "file:D:/CodeField/dsh-model-picker-control/dsh-model-picker-control-0.4.5.tgz"`
+  `"dsh-model-picker-control": "file:D:/CodeField/dsh-model-picker-control/dsh-model-picker-control-0.4.6.tgz"`
 - 实际加载的文件:`~/.dsh/profiles/desktop/node_modules/dsh-model-picker-control/lib/client.js`
 
 所以只改 `src/` 和 `lib/` 再重启 = 白改。完整流程:
