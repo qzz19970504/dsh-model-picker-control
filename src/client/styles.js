@@ -6,7 +6,7 @@ const PICKER_CSS = `
 .mpc-trigger:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}
 .mpc-trigger:focus-visible:not([data-selection-focus]){box-shadow:0 0 0 2px var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary))}
 .mpc-trigger:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}
-.mpc-triggerLabel{text-overflow:ellipsis;white-space:nowrap;min-width:0;overflow:hidden}
+.mpc-triggerLabel{text-overflow:ellipsis;white-space:nowrap;min-width:0;overflow:hidden;padding:6px;margin:-6px}
 .mpc-triggerEffort{text-overflow:ellipsis;white-space:nowrap;min-width:0;color:var(--dsw-alias-label-caption);flex-shrink:1000;overflow:hidden}
 .mpc-triggerIcon{display:var(--dsh-composer-model-icon-display,none);flex:none}
 .mpc-triggerLabel,.mpc-triggerEffort{display:var(--dsh-composer-model-text-display,block)}
@@ -31,7 +31,7 @@ const PICKER_CSS = `
 .mpc-selected{background:0 0}
 .mpc-option:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}
 .mpc-optionCopy{flex-direction:column;flex:1;min-width:0;display:flex}
-.mpc-modelName{color:inherit;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:400;line-height:18px;overflow:hidden}
+.mpc-modelName{color:inherit;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:400;line-height:18px;overflow:hidden;padding:6px;margin:-6px}
 .mpc-check{color:var(--dsw-alias-label-primary);flex:0 0 14px;place-items:center;display:grid}
 .mpc-check svg{width:14px;height:14px}
 .mpc-cell{box-sizing:border-box;border-radius:var(--dsw-radius-md);width:auto;min-width:100%;height:34px;color:var(--dsw-alias-label-primary);cursor:pointer;text-align:left;background:0 0;border:none;outline:none;align-items:center;gap:6px;padding:0 8px;font-size:13px;line-height:20px;display:flex}
@@ -64,11 +64,30 @@ const PICKER_CSS = `
 .mpc-tag[data-tone=blue]{background:color-mix(in srgb,var(--dsw-alias-state-business-primary) 10%,transparent);color:color-mix(in srgb,var(--dsw-alias-state-business-primary) 88%,#000)}
 .mpc-tag[data-tone=red]{background:color-mix(in srgb,#d9544f 12%,transparent);color:color-mix(in srgb,#d9544f 88%,#000)}
 .mpc-tag[data-tone=cyan]{background:color-mix(in srgb,#1fb89a 12%,transparent);color:color-mix(in srgb,#1fb89a 88%,#000)}
-@property --mpc-holo-a{syntax:'<angle>';inherits:true;initial-value:0deg}
-@keyframes mpc-holo{to{--mpc-holo-a:360deg}}
-.mpc-tag[data-tone=holo]{border:1.5px solid transparent;padding:0 7px;line-height:16px;color:#fff;font-weight:700;text-shadow:0 0 6px rgba(190,150,255,.65);background:linear-gradient(135deg,#34196b,#17114a) padding-box,conic-gradient(from var(--mpc-holo-a),#ff3df0,#7a5cff,#00d4ff,#2bff9e,#ffe14d,#ff7a3d,#ff3df0) border-box;box-shadow:0 0 7px rgba(150,110,255,.5)}
-.mpc-root:has([data-tone=holo]),.mpc-menu:has([data-tone=holo]),.mpc-pv:has([data-tone=holo]){animation:mpc-holo 5s cubic-bezier(.5,.15,.5,.85) infinite}
-@media (prefers-reduced-motion:reduce){.mpc-root,.mpc-menu,.mpc-pv{animation:none!important}}
+/* Holographic capsule ("aurora"). Every layer moves on its own period so they never lock step:
+   - border: a rainbow conic gradient whose angle (a registered property) turns once per 5.5 s;
+   - glint: a short pale arc on that border that travels the other way, once per 9 s (a catch-light, not a sweep);
+   - body: dark violet -> navy fill with a faint top gloss; nothing moves across the text;
+   - glow: ::before (violet) and ::after (cyan) breathe on 3.2 s / 4.6 s, opacity only, and stay within ~6px so
+     they fit the row (the composer trigger leaves about 5px above and below the capsule).
+   Hover does not grow the glow: the border takes a one-shot extra turn and the glow gets brighter.
+   The animation lives on each capsule, not on a container. Where @property is unsupported the angles stay fixed. */
+@property --mpc-holo-a{syntax:'<angle>';inherits:false;initial-value:0deg}
+@property --mpc-holo-b{syntax:'<angle>';inherits:false;initial-value:0deg}
+@property --mpc-holo-c{syntax:'<angle>';inherits:false;initial-value:0deg}
+@keyframes mpc-holo-spin{from{--mpc-holo-a:0deg}to{--mpc-holo-a:360deg}}
+@keyframes mpc-holo-glint{from{--mpc-holo-c:360deg}to{--mpc-holo-c:0deg}}
+@keyframes mpc-holo-breath-a{from{opacity:.5}to{opacity:1}}
+@keyframes mpc-holo-breath-b{from{opacity:.25}to{opacity:.8}}
+.mpc-tag[data-tone=holo]{--mpc-holo-a:30deg;--mpc-holo-b:0deg;--mpc-holo-c:200deg;transition:--mpc-holo-b .7s ease-out;position:relative;isolation:isolate;border:1.5px solid transparent;padding:0 7px;line-height:16px;color:#fff;font-weight:700;text-shadow:0 0 4px rgba(196,170,255,.55);background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.04) 46%,rgba(255,255,255,0) 50%) padding-box,linear-gradient(135deg,#3a1d7a,#1d1458 55%,#14184f) padding-box,conic-gradient(from var(--mpc-holo-c),transparent 0,transparent 86%,rgba(255,255,255,.85) 94%,transparent 100%) border-box,conic-gradient(from calc(var(--mpc-holo-a) + var(--mpc-holo-b)),#ff4fd8,#a35bff 20%,#4f86ff 40%,#22d8ff 58%,#4dffb0 70%,#d4ff6a 80%,#ff4fd8) border-box;animation:mpc-holo-spin 5.5s cubic-bezier(.5,.15,.5,.85) infinite,mpc-holo-glint 9s linear infinite}
+.mpc-tag[data-tone=holo]::before,.mpc-tag[data-tone=holo]::after{content:'';position:absolute;inset:0;border-radius:inherit;z-index:-1;pointer-events:none;transition:box-shadow .28s ease}
+.mpc-tag[data-tone=holo]::before{box-shadow:0 0 4px rgba(150,100,255,.75);animation:mpc-holo-breath-a 3.2s ease-in-out infinite alternate}
+.mpc-tag[data-tone=holo]::after{box-shadow:0 0 6px rgba(0,214,255,.4);animation:mpc-holo-breath-b 4.6s ease-in-out -1.7s infinite alternate}
+.mpc-tag[data-tone=holo]:hover{--mpc-holo-b:150deg}
+.mpc-tag[data-tone=holo]:hover::before,.mpc-option:focus-visible .mpc-tag[data-tone=holo]::before,.mpc-trigger:focus-visible .mpc-tag[data-tone=holo]::before{box-shadow:0 0 5px rgba(170,125,255,1)}
+.mpc-tag[data-tone=holo]:hover::after,.mpc-option:focus-visible .mpc-tag[data-tone=holo]::after,.mpc-trigger:focus-visible .mpc-tag[data-tone=holo]::after{box-shadow:0 0 6px rgba(0,214,255,.75)}
+.mpc-option:focus-visible .mpc-tag[data-tone=holo],.mpc-trigger:focus-visible .mpc-tag[data-tone=holo],.mpc-tag[data-tone=holo]:focus-visible{outline:2px solid #e6dcff;outline-offset:-3px}
+@media (prefers-reduced-motion:reduce){.mpc-tag[data-tone=holo]:hover{--mpc-holo-b:0deg}.mpc-tag[data-tone=holo],.mpc-tag[data-tone=holo]:hover,.mpc-tag[data-tone=holo]::before,.mpc-tag[data-tone=holo]::after{animation:none!important;transition:none!important}.mpc-tag[data-tone=holo]::before{opacity:.8}.mpc-tag[data-tone=holo]::after{opacity:.55}}
 .mpc-tag[data-tone=neutral]{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-secondary)}
 .mpc-toast{position:fixed;top:40px;left:50%;z-index:1100;pointer-events:none;display:flex;align-items:center;gap:10px;width:max-content;max-width:min(640px,calc(100vw - 48px));padding:12px 16px;border-radius:var(--dsw-radius-lg);background:var(--dsw-alias-toast-bg);color:var(--dsw-alias-toast-label);font-size:14px;line-height:22px;box-shadow:var(--dsw-shadow-lv3);transform:translate(-50%);animation:mpc-toast-in .16s ease-out,mpc-toast-fade 1s ease var(--mpc-toast-hold,3s) forwards}
 @keyframes mpc-toast-in{0%{opacity:0;transform:translate(-50%,-6px)}to{opacity:1;transform:translate(-50%)}}

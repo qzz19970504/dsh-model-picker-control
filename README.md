@@ -58,7 +58,7 @@ The screenshots are rendered from this plugin's real build with sample data (the
   </picture>
 </p>
 
-The holographic capsule has a slowly rotating rainbow border (one shared animation, off under `prefers-reduced-motion`):
+The holographic capsule is a dark violet pill with a rainbow border that turns slowly, a small pale catch-light that drifts around that border the other way, and a violet and a cyan glow that breathe on their own rhythm. The glow stays within a few pixels so it fits the composer row. Hover gives the border one extra turn and brightens the glow without making it bigger. Keyboard focus draws a light ring. With `prefers-reduced-motion` it keeps the static gradient border and drops the motion:
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/qzz19970504/dsh-model-picker-control/main/docs/holo.gif" width="360" alt="Holographic capsules with a rotating border">
